@@ -1189,20 +1189,29 @@ td.partial{color:var(--text-3)}
     }
     // with live data, flows run at a speed that matches the power right now
     const speed = kw => kw == null ? '' : ';animation-duration:' + Math.max(0.35, 1.8 - Math.min(kw, 8) * 0.18).toFixed(2) + 's';
-    const nowKw = {solar: NOW ? NOW.pvKw : null, grid: NOW ? (NOW.gridIn ? NOW.gridKw : 0) : null,
+    const nowKw = {solar: NOW ? NOW.pvKw : null, grid: NOW ? (NOW.gridIn || (num(LIVE.flow.gridOrMeterPower) > 10 && !truthy(LIVE.flow.toGrid)) ? NOW.gridKw : 0) : null,
       batt: NOW ? (NOW.batt === 'discharging' ? NOW.battKw : 0) : null, house: NOW ? NOW.loadKw : null};
     const pipe = (a, val, col, lines, rev, nk) => {
       const d = curve(a, rev);
       const left = a.x < C.x, top = a.y < C.y, lx = left ? a.x + 58 : a.x - 58, my = top ? a.y + 62 : a.y - 58 - (lines.length - 1) * 16;
-      const flowing = nk == null ? val > 0.05 : nk > 0.03;
-      // glowing dots travel along the line in the direction power flows; faster = more power
-      const dur = nk == null ? 2.4 : Math.max(0.9, 3.2 - Math.min(nk, 8) * 0.3);
+      const flowing = nk == null ? val > 0.05 : nk > 0.01;
+      // dots travel along the line in the direction power flows. Speed is in pixels per second and
+      // grows with the power, so a long line and a short one at the same kW move at the same speed:
+      // ~25 px/s for a trickle, ~140 px/s at 4 kW, ~190 px/s at 8 kW.
+      const p0 = {x:a.x, y:a.y + (a.y < C.y ? 36 : -36)}, q = {x:a.x, y:a.e.y}, p1 = a.e;
+      const dist = (u, v) => Math.hypot(u.x - v.x, u.y - v.y);
+      const len = (dist(p0, p1) + dist(p0, q) + dist(q, p1)) / 2;   // close estimate for a quadratic curve
+      const kw = nk == null ? 2 : nk;                                // past days: a steady medium pace
+      const pxs = 22 + 60 * Math.sqrt(Math.min(kw, 10));
+      const dur = len / pxs;
+      const nDots = kw < 0.15 ? 1 : kw < 1 ? 2 : kw < 4 ? 3 : 4;
+      const strong = Math.min(kw / 6, 1);
       const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const dots = flowing && !reduce ? [0, 1, 2].map(i =>
-        '<circle r="7" style="fill:' + col + ';opacity:.22"><animateMotion dur="' + dur.toFixed(2) + 's" begin="-' + (i*dur/3).toFixed(2) + 's" repeatCount="indefinite" path="' + d + '"/></circle>' +
-        '<circle r="3.6" style="fill:' + col + '"><animateMotion dur="' + dur.toFixed(2) + 's" begin="-' + (i*dur/3).toFixed(2) + 's" repeatCount="indefinite" path="' + d + '"/></circle>').join('') : '';
+      const dots = flowing && !reduce ? Array.from({length:nDots}, (_, i) =>
+        '<circle r="' + (5 + strong * 3).toFixed(1) + '" style="fill:' + col + ';opacity:' + (kw < 0.15 ? .12 : .22) + '"><animateMotion dur="' + dur.toFixed(2) + 's" begin="-' + (i*dur/nDots).toFixed(2) + 's" repeatCount="indefinite" path="' + d + '"/></circle>' +
+        '<circle r="' + (2.6 + strong * 1.6).toFixed(1) + '" style="fill:' + col + ';opacity:' + (kw < 0.15 ? .55 : 1) + '"><animateMotion dur="' + dur.toFixed(2) + 's" begin="-' + (i*dur/nDots).toFixed(2) + 's" repeatCount="indefinite" path="' + d + '"/></circle>').join('') : '';
       return '<path class="pipe base" d="' + d + '"/>' +
-        (flowing ? '<path class="pipe" d="' + d + '" style="stroke:' + col + ';opacity:.45"/>' + dots : '') +
+        (flowing ? '<path class="pipe" d="' + d + '" style="stroke:' + col + ';opacity:' + (0.2 + strong * 0.45).toFixed(2) + '"/>' + dots : '') +
         lines.map((t, i) => '<text class="pipe-label" x="' + lx + '" y="' + (my + i*16) + '" text-anchor="' + (left ? 'start' : 'end') + '">' + t + '</text>').join('');
     };
     let h = '';
@@ -1213,7 +1222,8 @@ td.partial{color:var(--text-3)}
     h += pipe(N.solar, T.pv, 'var(--solar)', NOW
       ? (NOW.pvKw > 0.05 ? [k1(NOW.pvKw - toBattNow) + ' → house'].concat(toBattNow > 0.05 ? [k1(toBattNow) + ' → battery'] : []) : [])
       : [kwh(F.fromSolar) + ' → house', kwh(T.chg) + ' → battery'], false, nowKw.solar);
-    h += pipe(N.grid, T.buy, 'var(--grid)', NOW ? [NOW.gridIn ? k1(NOW.gridKw) + ' → house' : 'idle'] : [kwh(F.fromGrid) + ' → house'], false, nowKw.grid);
+    const pw = v => v < 0.1 ? Math.round(v * 1000) + ' W' : v.toFixed(1) + ' kW';
+    h += pipe(N.grid, T.buy, 'var(--grid)', NOW ? [nowKw.grid > 0.01 ? pw(nowKw.grid) + ' → house' : 'idle'] : [kwh(F.fromGrid) + ' → house'], false, nowKw.grid);
     h += pipe(N.batt, NOW ? NOW.battKw : T.dis, 'var(--battery)',
       NOW ? (NOW.batt === 'charging' ? [k1(NOW.battKw) + ' in'] : NOW.batt === 'discharging' ? [k1(NOW.battKw) + ' → house'] : ['idle'])
           : [kwh(F.fromBatt) + ' → house'],
