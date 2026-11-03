@@ -84,6 +84,9 @@ input[type=file]{display:none}
 .flow .node-sub{font-size:11.5px;fill:var(--text-2)}
 .flow .pipe{fill:none;stroke-width:4;stroke-linecap:round}
 .flow .pipe.base{stroke:var(--line)}
+.flow .pipe.stream{stroke:rgba(255,255,255,.55);stroke-dasharray:2 14;stroke-linecap:round;mix-blend-mode:overlay;animation:stream linear infinite}
+@keyframes stream{to{stroke-dashoffset:-16}}
+@media (prefers-reduced-motion: reduce){.flow .pipe.stream{animation:none}}
 .flow .pipe.live{stroke-dasharray:3 10;animation:dash 1.1s linear infinite}
 .flow .pipe-label{font-size:12px;fill:var(--text-2);font-weight:500}
 @keyframes dash{to{stroke-dashoffset:-13}}
@@ -1158,10 +1161,10 @@ td.partial{color:var(--text-3)}
     const MOB = svg.clientWidth > 0 && svg.clientWidth < 520;
     const C = {x:320, y:180};
     const N = {
-      solar:{x:84, y:52, label:'Solar', val:kwh(T.pv)+' kWh', sub:'generated', col:'var(--solar)', e:{x:C.x-56, y:C.y-16}},
-      grid:{x:556, y:52, label:'Grid', val:kwh(T.buy)+' kWh', sub:T.sell>0 ? 'imported · '+kwh(T.sell)+' exported' : 'imported', col:'var(--grid)', e:{x:C.x+56, y:C.y-16}},
-      batt:{x:84, y:306, label:'Battery', val:kwh(T.chg)+' in', sub:kwh(T.dis)+' kWh out', col:'var(--battery)', e:{x:C.x-56, y:C.y+16}},
-      house:{x:556, y:306, label:'House', val:kwh(T.load)+' kWh', sub:'used', col:'var(--text)', e:{x:C.x+56, y:C.y+16}},
+      solar:{x:84, y:52, label:'Solar', val:kwh(T.pv)+' kWh', sub:'generated', col:'var(--solar)', e:{x:C.x-54, y:C.y-24}},
+      grid:{x:556, y:52, label:'Grid', val:kwh(T.buy)+' kWh', sub:T.sell>0 ? 'imported · '+kwh(T.sell)+' exported' : 'imported', col:'var(--grid)', e:{x:C.x+54, y:C.y-24}},
+      batt:{x:84, y:306, label:'Battery', val:kwh(T.chg)+' in', sub:kwh(T.dis)+' kWh out', col:'var(--battery)', e:{x:C.x-54, y:C.y+24}},
+      house:{x:556, y:306, label:'House', val:kwh(T.load)+' kWh', sub:'used', col:'var(--text)', e:{x:C.x+54, y:C.y+24}},
     };
     const icon = {
       solar:'<g stroke="currentColor" stroke-width="1.6" fill="none"><path d="M-14 6 L-9 -6 L9 -6 L14 6 Z"/><path d="M-11.5 0 H11.5 M-3 -6 L-4.5 6 M3 -6 L4.5 6"/><path d="M0 6 V11 M-6 11 H6"/></g>',
@@ -1208,14 +1211,17 @@ td.partial{color:var(--text-3)}
       const dur = len / pxs;
       const nDots = kw < 0.15 ? 1 : kw < 1 ? 2 : kw < 4 ? 3 : 4;
       const strong = Math.min(kw / 6, 1);
-      const lineW = Math.max(2.5, Math.min(11, 2 + 2.5 * Math.sqrt(kw)));
+      const lineW = Math.max(3, Math.min(26, 2.5 + 7 * Math.sqrt(kw)));   // ~3 px trickle, ~17 px at 4 kW, 26 px max
       const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
       const dots = flowing && !reduce ? Array.from({length:nDots}, (_, i) =>
         '<circle r="' + Math.max(5 + strong * 3, lineW / 2 + 4).toFixed(1) + '" style="fill:' + col + ';opacity:' + (kw < 0.15 ? .12 : .22) + '"><animateMotion dur="' + dur.toFixed(2) + 's" begin="-' + (i*dur/nDots).toFixed(2) + 's" repeatCount="indefinite" path="' + d + '"/></circle>' +
         '<circle r="' + Math.max(2.6 + strong * 1.6, lineW / 2 + 1.2).toFixed(1) + '" style="fill:' + col + ';opacity:' + (kw < 0.15 ? .55 : 1) + '"><animateMotion dur="' + dur.toFixed(2) + 's" begin="-' + (i*dur/nDots).toFixed(2) + 's" repeatCount="indefinite" path="' + d + '"/></circle>').join('') : '';
       return '<path class="pipe base" d="' + d + '"/>' +
-        // line thickness follows the power too: 2.5 px for a trickle, ~7 px at 4 kW, capped at 11 px
-        (flowing ? '<path class="pipe" d="' + d + '" style="stroke:' + col + ';stroke-width:' + lineW.toFixed(1) + 'px;opacity:' + (0.25 + strong * 0.4).toFixed(2) + '"/>' + dots : '') +
+        // line thickness follows the power: a thin thread for a trickle, a wide "data stream" at full power.
+        // Thick lines get a moving texture inside, travelling at the same speed as the dots.
+        (flowing ? '<path class="pipe" d="' + d + '" style="stroke:' + col + ';stroke-width:' + lineW.toFixed(1) + 'px;opacity:' + (0.28 + strong * 0.37).toFixed(2) + '"/>' +
+          (lineW >= 7 && !reduce ? '<path class="pipe stream" d="' + d + '" style="stroke-width:' + (lineW * 0.42).toFixed(1) + 'px;animation-duration:' + (16 / pxs).toFixed(3) + 's"/>' : '') +
+          dots : '') +
         lines.map((t, i) => '<text class="pipe-label" x="' + lx + '" y="' + (my + i*16) + '" text-anchor="' + (left ? 'start' : 'end') + '">' + t + '</text>').join('');
     };
     let h = '';
