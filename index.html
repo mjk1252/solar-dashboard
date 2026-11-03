@@ -163,18 +163,17 @@ td.partial{color:var(--text-3)}
 .wx-cloud{position:absolute;left:0;animation:cloudmove linear infinite;will-change:transform}
 .wx-cloud svg{display:block;width:100%;height:auto}
 @keyframes cloudmove{from{transform:translateX(-40vw)}to{transform:translateX(110vw)}}
-.wx-rain{position:absolute;inset:-20% 0 0 0;background:
-  repeating-linear-gradient(100deg, transparent 0 18px, var(--drop) 18px 19.5px, transparent 19.5px 41px),
-  repeating-linear-gradient(103deg, transparent 0 27px, var(--drop2) 27px 28px, transparent 28px 63px);
-  background-size:280px 280px, 340px 340px;animation:rain .5s linear infinite;
+.wx-rain{position:absolute;inset:0;
   -webkit-mask-image:linear-gradient(180deg,rgba(0,0,0,.12) 0,rgba(0,0,0,.18) 22%,#000 34%,transparent 92%);mask-image:linear-gradient(180deg,rgba(0,0,0,.12) 0,rgba(0,0,0,.18) 22%,#000 34%,transparent 92%)}
-@keyframes rain{from{background-position:0 0,0 0}to{background-position:-50px 280px,-80px 340px}}
+.wx-drop{position:absolute;top:-14vh;width:2px;border-radius:1px;background:linear-gradient(180deg,transparent,var(--drop));
+  transform:rotate(12deg);animation:drop linear infinite;will-change:transform}
+@keyframes drop{to{transform:translate(-27vh,128vh) rotate(12deg)}}
 .wx-flash{position:absolute;inset:0;background:#fff;opacity:0;animation:flash 9s linear infinite}
 .wx-fog{position:absolute;left:-20%;right:-20%;height:28%;border-radius:50%;filter:blur(30px);background:var(--fogc);animation:clouds 60s ease-in-out infinite alternate}
 @keyframes clouds{from{transform:translateX(-8%)}to{transform:translateX(8%)}}
 @keyframes flash{0%,93%,100%{opacity:0}93.6%{opacity:.35}94.2%{opacity:0}95%{opacity:.22}95.6%{opacity:0}}
 /* sky colours: dark theme */
-.wx-bg{--drop:rgba(200,215,240,.38);--drop2:rgba(200,215,240,.22);--fogc:rgba(190,195,205,.20);--cloudf:rgba(235,240,250,.16);--cloudd:rgba(170,180,200,.10)}
+.wx-bg{--drop:rgba(205,220,245,.6);--drop2:rgba(200,215,240,.22);--fogc:rgba(190,195,205,.20);--cloudf:rgba(235,240,250,.16);--cloudd:rgba(170,180,200,.10)}
 .wx-bg[data-wx="clear"] .sky{background:linear-gradient(180deg,#123c6e 0%,#16477c 22%,#0f2c4c 55%,var(--bg) 90%)}
 .wx-bg[data-wx="partly"] .sky{background:linear-gradient(180deg,#1a3f67 0%,#1b4570 25%,#122c47 58%,var(--bg) 90%)}
 .wx-bg[data-wx="overcast"] .sky,.wx-bg[data-wx="rain"] .sky{background:linear-gradient(180deg,#363c46 0%,#2c3139 35%,#1c1e22 65%,var(--bg) 92%)}
@@ -182,7 +181,7 @@ td.partial{color:var(--text-3)}
 .wx-bg[data-wx="fog"] .sky{background:linear-gradient(180deg,#3d4149 0%,#30333a 45%,var(--bg) 92%)}
 .wx-bg[data-wx="clear-night"] .sky,.wx-bg[data-wx="cloudy-night"] .sky{background:linear-gradient(180deg,#0b1636 0%,#0d1a3e 30%,#0b1229 60%,var(--bg) 92%)}
 /* light theme */
-:root[data-theme="light"] .wx-bg{--drop:rgba(60,85,125,.35);--drop2:rgba(60,85,125,.2);--fogc:rgba(255,255,255,.55);--cloudf:rgba(255,255,255,.92);--cloudd:rgba(150,165,190,.35)}
+:root[data-theme="light"] .wx-bg{--drop:rgba(55,80,120,.5);--drop2:rgba(60,85,125,.2);--fogc:rgba(255,255,255,.55);--cloudf:rgba(255,255,255,.92);--cloudd:rgba(150,165,190,.35)}
 :root[data-theme="light"] .wx-bg[data-wx="clear"] .sky{background:linear-gradient(180deg,#6fb0f2 0%,#9cc9f5 30%,#d4e6f7 60%,var(--bg) 92%)}
 :root[data-theme="light"] .wx-bg[data-wx="partly"] .sky{background:linear-gradient(180deg,#86b7e8 0%,#a9cbee 32%,#d8e5f2 62%,var(--bg) 92%)}
 :root[data-theme="light"] .wx-bg[data-wx="overcast"] .sky,:root[data-theme="light"] .wx-bg[data-wx="rain"] .sky{background:linear-gradient(180deg,#a8b1bd 0%,#bec5ce 35%,#dadde1 65%,var(--bg) 92%)}
@@ -190,7 +189,7 @@ td.partial{color:var(--text-3)}
 :root[data-theme="light"] .wx-bg[data-wx="fog"] .sky{background:linear-gradient(180deg,#c7cbd1 0%,#d9dbde 45%,var(--bg) 92%)}
 :root[data-theme="light"] .wx-bg[data-wx="clear-night"] .sky,:root[data-theme="light"] .wx-bg[data-wx="cloudy-night"] .sky{background:linear-gradient(180deg,#9fa8d8 0%,#bcc2e2 35%,#dfe1ee 65%,var(--bg) 92%)}
 @media (prefers-color-scheme: light){
-  :root:not([data-theme="dark"]) .wx-bg{--drop:rgba(60,85,125,.35);--drop2:rgba(60,85,125,.2);--fogc:rgba(255,255,255,.55);--cloudf:rgba(255,255,255,.92);--cloudd:rgba(150,165,190,.35)}
+  :root:not([data-theme="dark"]) .wx-bg{--drop:rgba(55,80,120,.5);--drop2:rgba(60,85,125,.2);--fogc:rgba(255,255,255,.55);--cloudf:rgba(255,255,255,.92);--cloudd:rgba(150,165,190,.35)}
   :root:not([data-theme="dark"]) .wx-bg[data-wx="clear"] .sky{background:linear-gradient(180deg,#6fb0f2 0%,#9cc9f5 30%,#d4e6f7 60%,var(--bg) 92%)}
   :root:not([data-theme="dark"]) .wx-bg[data-wx="partly"] .sky{background:linear-gradient(180deg,#86b7e8 0%,#a9cbee 32%,#d8e5f2 62%,var(--bg) 92%)}
   :root:not([data-theme="dark"]) .wx-bg[data-wx="overcast"] .sky,:root:not([data-theme="dark"]) .wx-bg[data-wx="rain"] .sky{background:linear-gradient(180deg,#a8b1bd 0%,#bec5ce 35%,#dadde1 65%,var(--bg) 92%)}
@@ -984,8 +983,14 @@ td.partial{color:var(--text-3)}
     if (kind === 'clear') h += '<div class="wx-rays"></div><div class="wx-sun"></div>';
     if (kind === 'partly') h += '<div class="wx-rays"></div><div class="wx-sun"></div>' + clouds(5, [2, 30], 1);
     if (kind === 'overcast') h += clouds(9, [-4, 34], 1);
-    if (kind === 'rain') h += clouds(8, [-6, 26], 1) + '<div class="wx-rain"></div>';
-    if (kind === 'storm') h += clouds(9, [-6, 24], 1) + '<div class="wx-rain"></div><div class="wx-flash"></div>';
+    // rain: individual drops, each falling on its own slanted path (no repeating pattern, so no jump)
+    const rain = (n, fast) => '<div class="wx-rain">' + Array.from({length:n}, () => {
+      const dur = fast ? rnd(.45, .8) : rnd(.6, 1.1);
+      return '<div class="wx-drop" style="left:' + rnd(-5, 130).toFixed(1) + '%;height:' + rnd(8, 18).toFixed(0) + 'vh;opacity:' + rnd(.35, .9).toFixed(2) +
+        ';animation-duration:' + dur.toFixed(2) + 's;animation-delay:-' + rnd(0, dur).toFixed(2) + 's"></div>';
+    }).join('') + '</div>';
+    if (kind === 'rain') h += clouds(8, [-6, 26], 1) + rain(90, false);
+    if (kind === 'storm') h += clouds(9, [-6, 24], 1) + rain(140, true) + '<div class="wx-flash"></div>';
     if (kind === 'fog') h += '<div class="wx-fog" style="top:6%"></div><div class="wx-fog" style="top:26%;animation-delay:-20s"></div><div class="wx-fog" style="top:46%;animation-delay:-40s"></div>';
     if (kind === 'clear-night') h += stars(90) + '<div class="wx-moon"></div>';
     if (kind === 'cloudy-night') h += stars(40) + '<div class="wx-moon"></div>' + clouds(5, [0, 28], .7);
