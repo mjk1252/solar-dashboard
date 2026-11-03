@@ -72,7 +72,10 @@ input[type=file]{display:none}
 .chip .tag{font-size:10px;opacity:.7;margin-left:4px;text-transform:uppercase;letter-spacing:.06em}
 
 /* hero */
-.hero{display:grid;grid-template-columns:1.25fr 1fr;gap:16px}
+.hero{display:grid;grid-template-columns:1.6fr 1fr;gap:16px}
+.flow-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.flow-meta{font-size:12px;color:var(--text-3)}
+.flow svg{margin-top:6px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:22px}
 .eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-3);font-weight:500}
 .flow svg{width:100%;height:auto;display:block}
@@ -234,7 +237,7 @@ td.partial{color:var(--text-3)}
 
     <section class="hero">
       <div class="card flow">
-        <div class="eyebrow" id="flowTitle">Energy flow</div>
+        <div class="flow-head"><div class="eyebrow" id="flowTitle">Energy flow</div><div class="flow-meta" id="flowMeta"></div></div>
         <svg id="flowSvg" viewBox="0 0 640 360" role="img" aria-label="Energy flow between solar, battery, grid and house"></svg>
       </div>
       <div class="card money">
@@ -648,6 +651,7 @@ td.partial{color:var(--text-3)}
     document.getElementById('kDis').innerHTML = kwh(T.dis) + u;
 
     drawFlow(T, F, n);
+    renderLive();
     projection(days);
     insights(sel);
     hourChart(sel);
@@ -708,31 +712,15 @@ td.partial{color:var(--text-3)}
       '<rect class="batt-fill" x="-6.5" y="' + (11.5 - fh) + '" width="13" height="' + fh + '" rx="1.5" fill="currentColor"/>' +
       '<g transform="translate(0 ' + (11.5 - fh/2) + ')">' + (fh > 8 ? chev : '') + '</g></g>';
   }
-  // horizontal battery for the live tile, with moving stripes
-  let stripeId = 0;
-  function svgBattH(soc, state){
-    const w = 52, fw = Math.max(2, w * Math.max(0, Math.min(soc, 100)) / 100), id = 'bs' + (++stripeId);
-    const moving = state === 'charging' || state === 'discharging';
-    return '<svg width="74" height="36" viewBox="0 0 74 36" aria-hidden="true" style="color:var(--battery)">' +
-      '<defs><clipPath id="' + id + '"><rect x="6" y="8" width="' + fw + '" height="20" rx="3"/></clipPath></defs>' +
-      '<rect x="3" y="5" width="58" height="26" rx="6" fill="none" stroke="currentColor" stroke-width="2"/>' +
-      '<rect x="63" y="13" width="4" height="10" rx="1.5" fill="currentColor"/>' +
-      '<rect class="batt-fill" x="6" y="8" width="' + fw + '" height="20" rx="3" fill="currentColor"/>' +
-      (moving ? '<g clip-path="url(#' + id + ')"><g class="stripes' + (state === 'discharging' ? ' rev' : '') + '" opacity=".28">' +
-        Array.from({length:10}, (_, i) => '<path d="M' + (i*12 - 12) + ' 30 L' + (i*12) + ' 6" stroke="var(--surface)" stroke-width="4"/>').join('') + '</g></g>' : '') +
-      (state === 'charging' ? '<path d="M35 9 L28 19 H33 L30 27 L38 16 H33 Z" fill="var(--surface)" class="glow"/>' : '') +
-      '</svg>';
-  }
-
   /* ---------- flow diagram ---------- */
   function drawFlow(T, F, n){
     const svg = document.getElementById('flowSvg');
     const C = {x:320, y:180};
     const N = {
-      solar:{x:90, y:58, label:'Solar', val:kwh(T.pv)+' kWh', sub:'generated', col:'var(--solar)', e:{x:C.x-46, y:C.y-14}},
-      grid:{x:550, y:58, label:'Grid', val:kwh(T.buy)+' kWh', sub:T.sell>0 ? 'imported · '+kwh(T.sell)+' exported' : 'imported', col:'var(--grid)', e:{x:C.x+46, y:C.y-14}},
-      batt:{x:90, y:302, label:'Battery', val:kwh(T.chg)+' in', sub:kwh(T.dis)+' kWh out', col:'var(--battery)', e:{x:C.x-46, y:C.y+14}},
-      house:{x:550, y:302, label:'House', val:kwh(T.load)+' kWh', sub:'used', col:'var(--text)', e:{x:C.x+46, y:C.y+14}},
+      solar:{x:84, y:52, label:'Solar', val:kwh(T.pv)+' kWh', sub:'generated', col:'var(--solar)', e:{x:C.x-46, y:C.y-14}},
+      grid:{x:556, y:52, label:'Grid', val:kwh(T.buy)+' kWh', sub:T.sell>0 ? 'imported · '+kwh(T.sell)+' exported' : 'imported', col:'var(--grid)', e:{x:C.x+46, y:C.y-14}},
+      batt:{x:84, y:306, label:'Battery', val:kwh(T.chg)+' in', sub:kwh(T.dis)+' kWh out', col:'var(--battery)', e:{x:C.x-46, y:C.y+14}},
+      house:{x:556, y:306, label:'House', val:kwh(T.load)+' kWh', sub:'used', col:'var(--text)', e:{x:C.x+46, y:C.y+14}},
     };
     const icon = {
       solar:'<g stroke="currentColor" stroke-width="1.6" fill="none"><path d="M-14 6 L-9 -6 L9 -6 L14 6 Z"/><path d="M-11.5 0 H11.5 M-3 -6 L-4.5 6 M3 -6 L4.5 6"/><path d="M0 6 V11 M-6 11 H6"/></g>',
@@ -742,9 +730,9 @@ td.partial{color:var(--text-3)}
     };
     // each node gets its own curve into the hub; live dashes run toward the house
     const curve = (a, rev) => {
-      const p = 'M' + a.x + ' ' + (a.y + (a.y < C.y ? 26 : -26)) + ' Q ' + a.x + ' ' + a.e.y + ' ' + a.e.x + ' ' + a.e.y;
+      const p = 'M' + a.x + ' ' + (a.y + (a.y < C.y ? 36 : -36)) + ' Q ' + a.x + ' ' + a.e.y + ' ' + a.e.x + ' ' + a.e.y;
       if (!rev) return p;
-      return 'M' + a.e.x + ' ' + a.e.y + ' Q ' + a.x + ' ' + a.e.y + ' ' + a.x + ' ' + (a.y + (a.y < C.y ? 26 : -26));
+      return 'M' + a.e.x + ' ' + a.e.y + ' Q ' + a.x + ' ' + a.e.y + ' ' + a.x + ' ' + (a.y + (a.y < C.y ? 36 : -36));
     };
     const NOW = nowState();
     document.getElementById('flowTitle').innerHTML = NOW
@@ -819,9 +807,9 @@ td.partial{color:var(--text-3)}
       let ic = icon[k];
       if (k === 'solar') ic = svgSun(pvNow, 1);
       if (k === 'batt' && socNow != null) ic = svgBattV(socNow, NOW ? NOW.batt : 'idle');
-      h += '<circle cx="' + v.x + '" cy="' + v.y + '" r="24" fill="var(--surface-2)" stroke="var(--line)"/>' +
-           '<g transform="translate(' + v.x + ' ' + v.y + ')" style="color:' + v.col + '">' + ic + '</g>';
-      const tx = v.x < C.x ? v.x + 38 : v.x - 38, anchor = v.x < C.x ? 'start' : 'end';
+      h += '<circle cx="' + v.x + '" cy="' + v.y + '" r="34" fill="var(--surface-2)" stroke="var(--line)"/>' +
+           '<g transform="translate(' + v.x + ' ' + v.y + ') scale(1.45)" style="color:' + v.col + '">' + ic + '</g>';
+      const tx = v.x < C.x ? v.x + 50 : v.x - 50, anchor = v.x < C.x ? 'start' : 'end';
       h += '<text x="' + tx + '" y="' + (v.y - 6) + '" text-anchor="' + anchor + '" class="node-label">' + v.label + '</text>' +
            '<text x="' + tx + '" y="' + (v.y + 17) + '" text-anchor="' + anchor + '" class="node-val">' + v.val + '</text>' +
            '<text x="' + tx + '" y="' + (v.y + 33) + '" text-anchor="' + anchor + '" class="node-sub">' + v.sub + '</text>';
@@ -1144,20 +1132,10 @@ td.partial{color:var(--text-3)}
   }
 
   function renderLive(){
-    const el = document.getElementById('live');
-    if (!LIVE.token || !LIVE.flow) { el.classList.add('hidden'); return; }
-    const f = LIVE.flow, kw = w => (Math.abs(num(w))/1000).toFixed(2) + ' kW';
-    const battState = battDir(f);
-    const gridState = gridDir(f);
-    el.innerHTML =
-      '<div class="tile"><div class="eyebrow"><span class="dot" style="background:var(--solar)"></span>Solar now</div><div class="v">' + kw(f.pvPower) + '</div><div class="s">' + (num(f.pvPower) > 50 ? 'producing' : 'no sun') + '</div>' +
-        '<svg class="ico" width="48" height="48" viewBox="-24 -24 48 48" aria-hidden="true">' + svgSun(num(f.pvPower)/1000, 1.15) + '</svg></div>' +
-      '<div class="tile"><div class="eyebrow"><span class="dot" style="background:var(--battery)"></span>Battery</div><div class="v">' + Math.round(num(f.soc)) + '%</div><div class="s">' + battState + (battState !== 'idle' ? ' · ' + kw(f.battPower) : '') + '</div>' +
-        '<span class="ico">' + svgBattH(num(f.soc), battState) + '</span></div>' +
-      '<div class="tile"><div class="eyebrow"><span class="dot" style="background:var(--grid)"></span>Grid now</div><div class="v">' + kw(f.gridOrMeterPower) + '</div><div class="s">' + gridState + '</div></div>' +
-      '<div class="tile"><div class="eyebrow">House now</div><div class="v">' + kw(f.loadOrEpsPower) + '</div><div class="s">using</div></div>' +
-      '<div class="meta"><span><span class="pulse"></span>Live</span><span>Updated ' + hm(LIVE.flowAt) + '</span></div>';
-    el.classList.remove('hidden');
+    const meta = document.getElementById('flowMeta');
+    document.getElementById('live').classList.add('hidden');
+    if (!meta) return;
+    meta.textContent = nowState() && LIVE.flowAt ? 'Updated ' + hm(LIVE.flowAt) + ' · refreshes every 5 min' : '';
   }
 
   async function liveLoadAll(){
