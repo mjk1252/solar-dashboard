@@ -142,6 +142,39 @@ td.partial{color:var(--text-3)}
 .field .in span{color:var(--text-3);font-size:14px}
 .field input{flex:1;border:0;background:transparent;color:var(--text);font:inherit;font-size:16px;padding:11px 8px;min-width:0}
 .field small{display:block;color:var(--text-3);font-size:11.5px;margin-top:5px}
+/* status headline */
+.status{margin:2px 0 18px}
+.status .hello{font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-3);font-weight:500}
+.status h2{font-weight:300;font-size:clamp(24px,3.4vw,38px);letter-spacing:-.025em;line-height:1.15;margin:8px 0 6px}
+.status p{margin:0;color:var(--text-2);font-size:14.5px;max-width:760px}
+.status .rise{animation:rise .6s ease both}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* period switch */
+.periods{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 18px}
+.seg{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px;max-width:100%;overflow-x:auto}
+.seg button{border:0;background:transparent;padding:7px 14px;border-radius:999px;color:var(--text-2);white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.seg button:disabled{opacity:.35;cursor:default}
+.daypick{font:inherit;font-size:13px;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:999px;padding:8px 12px}
+.kpi .per{color:var(--text-3)}
+
+/* ambient sky behind the energy flow */
+.flow{position:relative;overflow:hidden;isolation:isolate}
+.flow::before{content:"";position:absolute;inset:-20%;z-index:-1;opacity:0;transition:opacity 1.2s ease,background 1.2s ease}
+.flow[data-sky="sun"]::before{opacity:1;background:radial-gradient(42% 40% at 14% 10%, rgba(237,161,0,.22), transparent 70%);animation:breathe 7s ease-in-out infinite}
+.flow[data-sky="cloudy"]::before{opacity:1;background:radial-gradient(50% 45% at 18% 10%, rgba(160,170,185,.16), transparent 70%), radial-gradient(40% 30% at 60% 0%, rgba(140,150,165,.10), transparent 70%)}
+.flow[data-sky="night"]::before{opacity:1;background:
+  radial-gradient(1.2px 1.2px at 22% 18%, rgba(255,255,255,.55), transparent 60%),
+  radial-gradient(1px 1px at 48% 9%, rgba(255,255,255,.45), transparent 60%),
+  radial-gradient(1.4px 1.4px at 71% 22%, rgba(255,255,255,.4), transparent 60%),
+  radial-gradient(1px 1px at 86% 12%, rgba(255,255,255,.5), transparent 60%),
+  radial-gradient(1px 1px at 35% 30%, rgba(255,255,255,.35), transparent 60%),
+  radial-gradient(55% 50% at 15% 8%, rgba(80,90,170,.22), transparent 70%)}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+:root[data-theme="light"] .flow[data-sky="night"]::before{opacity:.5}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]) .flow[data-sky="night"]::before{opacity:.5}}
+
 /* animated icons */
 .spin{animation:spin 16s linear infinite;transform-box:fill-box;transform-origin:center}
 .spin.fast{animation-duration:7s}
@@ -162,7 +195,7 @@ td.partial{color:var(--text-3)}
 .stripes.rev{animation-direction:reverse}
 @keyframes stripes{to{transform:translateX(12px)}}
 .batt-fill{transition:height .8s ease,width .8s ease,y .8s ease}
-@media (prefers-reduced-motion: reduce){.spin,.glow,.chev,.stripes,.drift,.twinkle{animation:none !important}.chev{opacity:.8}}
+@media (prefers-reduced-motion: reduce){.spin,.glow,.chev,.stripes,.drift,.twinkle,.rise,.flow::before{animation:none !important}.chev{opacity:.8}}
 .livebar .tile{position:relative;overflow:hidden}
 .livebar .tile .ico{position:absolute;right:12px;top:50%;transform:translateY(-50%);opacity:.95}
 @media (max-width: 520px){.livebar .tile .ico{top:auto;bottom:6px;right:8px;transform:scale(.62);transform-origin:bottom right}}
@@ -196,8 +229,8 @@ td.partial{color:var(--text-3)}
   .card{padding:18px;border-radius:18px}
   .sun-facts{grid-template-columns:1fr 1fr}
   .flow .pipe-label{display:none}
-  .flow .node-val{font-size:30px}
-  .flow .node-label,.flow .node-sub{font-size:17px}
+  .flow svg{margin:4px -8px 0;width:calc(100% + 16px)}
+  .status h2{font-size:24px}
 }
 </style>
 </head>
@@ -237,7 +270,15 @@ td.partial{color:var(--text-3)}
   <!-- Dashboard -->
   <main id="dash" class="hidden">
     <section class="livebar hidden" id="live" aria-live="polite"></section>
-    <div class="chips" id="chips" role="group" aria-label="Choose day"></div>
+    <section class="status" id="status" aria-live="polite">
+      <div class="hello" id="hello"></div>
+      <h2 id="headline"></h2>
+      <p id="subline"></p>
+    </section>
+    <div class="periods">
+      <div class="seg" id="seg" role="group" aria-label="Choose period"></div>
+      <select class="daypick" id="daypick" aria-label="Pick a day"></select>
+    </div>
 
     <section class="hero">
       <div class="card flow">
@@ -246,12 +287,12 @@ td.partial{color:var(--text-3)}
       </div>
       <div class="card money">
         <div>
-          <div class="eyebrow">Saved on electricity</div>
+          <div class="eyebrow" id="savedTitle">Saved on electricity</div>
           <div class="big" id="saved">R0</div>
           <div class="stat l" id="savedSub" style="margin-top:8px;color:var(--text-2);font-size:13px"></div>
         </div>
         <div>
-          <div class="eyebrow">Where the house got its power</div>
+          <div class="eyebrow" id="splitTitle">Where the house got its power</div>
           <div class="bar-split" id="split"></div>
           <div class="legend" id="splitLegend"></div>
         </div>
@@ -265,11 +306,11 @@ td.partial{color:var(--text-3)}
     </section>
 
     <section class="kpis">
-      <div class="card kpi"><div class="eyebrow"><span class="dot" style="background:var(--solar)"></span>Solar</div><div class="v" id="kSolar">0</div><div class="d">generated</div></div>
-      <div class="card kpi"><div class="eyebrow">House</div><div class="v" id="kLoad">0</div><div class="d">used</div></div>
-      <div class="card kpi"><div class="eyebrow"><span class="dot" style="background:var(--grid)"></span>Grid</div><div class="v" id="kGrid">0</div><div class="d" id="kGridD">imported</div></div>
-      <div class="card kpi"><div class="eyebrow"><span class="dot" style="background:var(--battery)"></span>Battery in</div><div class="v" id="kChg">0</div><div class="d">charged</div></div>
-      <div class="card kpi"><div class="eyebrow"><span class="dot" style="background:var(--battery)"></span>Battery out</div><div class="v" id="kDis">0</div><div class="d">discharged</div></div>
+      <div class="card kpi"><div class="eyebrow"><span class="dot" style="background:var(--solar)"></span>Solar</div><div class="v" id="kSolar">0</div><div class="d"><span>generated</span> <span class="per"></span></div></div>
+      <div class="card kpi"><div class="eyebrow">House</div><div class="v" id="kLoad">0</div><div class="d"><span>used</span> <span class="per"></span></div></div>
+      <div class="card kpi"><div class="eyebrow"><span class="dot" style="background:var(--grid)"></span>Grid</div><div class="v" id="kGrid">0</div><div class="d"><span id="kGridD">imported</span> <span class="per"></span></div></div>
+      <div class="card kpi"><div class="eyebrow"><span class="dot" style="background:var(--battery)"></span>Battery in</div><div class="v" id="kChg">0</div><div class="d"><span>charged</span> <span class="per"></span></div></div>
+      <div class="card kpi"><div class="eyebrow"><span class="dot" style="background:var(--battery)"></span>Battery out</div><div class="v" id="kDis">0</div><div class="d"><span>discharged</span> <span class="per"></span></div></div>
     </section>
 
     <section class="grid2">
@@ -367,6 +408,9 @@ td.partial{color:var(--text-3)}
     <div class="field"><label for="cost">System cost</label>
       <div class="in"><span>R</span><input id="cost" type="number" step="100" min="0" inputmode="decimal"></div>
       <small>Optional. Used to estimate payback time.</small></div>
+    <div class="field"><label for="cap">Battery size</label>
+      <div class="in"><input id="cap" type="number" step="0.01" min="1" inputmode="decimal"><span>kWh</span></div>
+      <small>Used for "full in…" and "lasts until…" estimates.</small></div>
     <div class="field"><label for="reserve">Battery reserve</label>
       <div class="in"><input id="reserve" type="number" step="1" min="0" max="100" inputmode="numeric"><span>%</span></div>
       <small>Your Use Timer SOC. Used to spot when the battery ran out.</small></div>
@@ -405,14 +449,14 @@ td.partial{color:var(--text-3)}
 <script>
 (() => {
   /* ---------- settings ---------- */
-  const DEF = {rate:5, feed:0, fixed:0, cost:0, reserve:25};
+  const DEF = {rate:5, feed:0, fixed:0, cost:0, reserve:25, cap:16.07};
   const store = {
     get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
     set(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
   };
   let S = {...DEF};
   try { Object.assign(S, JSON.parse(store.get('solar.settings') || '{}')); } catch(e){}
-  const ids = ['rate','feed','fixed','cost','reserve'];
+  const ids = ['rate','feed','fixed','cost','reserve','cap'];
   ids.forEach(k => {
     const el = document.getElementById(k);
     el.value = S[k];
@@ -521,7 +565,62 @@ td.partial{color:var(--text-3)}
   let DAYTOT = new Map(); // day key -> totals from the live API (overrides counters)
   let PLANT = '';
   let DATA = null;       // derived
-  let SEL = 'all';
+  let PERIOD = null;     // 'today' | 'yesterday' | 'week' | 'month' | 'all' | 'day:YYYY-MM-DD'
+  const todayKey = () => dayKey(new Date());
+  const shiftKey = (k, n) => { const [y,m,d] = k.split('-').map(Number); return dayKey(new Date(y, m-1, d+n)); };
+  function periodRange(p){
+    const t = todayKey();
+    if (p === 'today') return [t, t];
+    if (p === 'yesterday') { const y = shiftKey(t, -1); return [y, y]; }
+    if (p === 'week') return [shiftKey(t, -6), t];
+    if (p === 'month') return [t.slice(0, 8) + '01', t];
+    if (p && p.startsWith('day:')) { const k = p.slice(4); return [k, k]; }
+    return ['0000', '9999'];
+  }
+  const inRange = (k, p) => { const [a, b] = periodRange(p); return k >= a && k <= b; };
+  const selDays = () => DATA ? DATA.days.filter(d => inRange(d.key, PERIOD)) : [];
+  const isTodayView = () => PERIOD === 'today' || PERIOD === 'day:' + todayKey();
+  function periodLabel(p = PERIOD){
+    return p === 'today' ? 'Today' : p === 'yesterday' ? 'Yesterday' : p === 'week' ? 'Last 7 days'
+      : p === 'month' ? 'This month' : p === 'all' ? 'All days' : p && p.startsWith('day:') ? niceDay(p.slice(4)) : '';
+  }
+  function periodPhrase(p = PERIOD){
+    return p === 'today' ? 'today' : p === 'yesterday' ? 'yesterday' : p === 'week' ? 'in the last 7 days'
+      : p === 'month' ? 'this month' : p === 'all' ? 'across all days' : 'on ' + niceDay(String(p).slice(4));
+  }
+  function defaultPeriod(){
+    if (DATA.days.some(d => d.key === todayKey())) return 'today';
+    return 'day:' + DATA.days[DATA.days.length - 1].key;
+  }
+  async function setPeriod(p){
+    PERIOD = p;
+    if (LIVE.token) {
+      // fetch 5-minute detail for days in the range that don't have it yet (latest 7 at most)
+      const need = DATA.days.filter(d => inRange(d.key, p) && !d.rows.length).slice(-7);
+      if (need.length) {
+        document.getElementById('flowMeta').textContent = 'Loading ' + need.length + ' day' + (need.length > 1 ? 's' : '') + '…';
+        for (const d of need) { try { await liveDay(d.key); } catch(e){} }
+        derive();
+      }
+    }
+    render();
+  }
+
+  /* count-up for headline numbers */
+  const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function setNum(id, value, fmt){
+    const el = document.getElementById(id); if (!el) return;
+    const from = el._v == null ? 0 : el._v; el._v = value;
+    if (reduceMotion() || !isFinite(value) || Math.abs(value - from) < 1e-6) { el.innerHTML = fmt(value); return; }
+    const t0 = performance.now(), dur = 700;
+    cancelAnimationFrame(el._raf);
+    const step = t => {
+      const k = Math.min((t - t0) / dur, 1), e = 1 - Math.pow(1 - k, 3);
+      el.innerHTML = fmt(from + (value - from) * e);
+      if (k < 1) el._raf = requestAnimationFrame(step);
+    };
+    el._raf = requestAnimationFrame(step);
+  }
   const charts = {};
 
   async function addFiles(files){
@@ -540,7 +639,7 @@ td.partial{color:var(--text-3)}
         document.getElementById('empty').classList.remove('hidden');
       }
     }
-    if (RAW.size) { derive(); SEL = 'all'; render(); }
+    if (RAW.size) { derive(); PERIOD = null; render(); }
   }
 
   /* ---------- derive ---------- */
@@ -602,40 +701,48 @@ td.partial{color:var(--text-3)}
     const span = days.length === 1 ? niceDay(days[0].key) : niceDay(days[0].key) + ' – ' + niceDay(days[days.length-1].key);
     document.getElementById('subtitle').textContent = (PLANT ? PLANT + ' · ' : '') + span;
 
-    // chips
-    const chips = document.getElementById('chips'); chips.innerHTML = '';
-    const mk = (key, label, tag) => {
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'chip';
-      b.setAttribute('aria-pressed', String(SEL === key));
-      b.innerHTML = label + (tag ? '<span class="tag">' + tag + '</span>' : '');
-      b.onclick = async () => {
-        SEL = key;
-        const d = DATA.days.find(x => x.key === key);
-        if (LIVE.token && d && !d.rows.length) { b.textContent = 'Loading…'; try { await liveDay(key); derive(); } catch(e){} }
-        render();
-      };
-      chips.appendChild(b);
-    };
-    if (days.length > 1) mk('all', 'All ' + days.length + ' days');
-    days.forEach(d => mk(d.key, niceDay(d.key), d.complete ? '' : 'partial'));
-    if (days.length === 1) SEL = days[0].key;
+    // period switch
+    if (!PERIOD || !selDays().length) PERIOD = defaultPeriod();
+    const seg = document.getElementById('seg'); seg.innerHTML = '';
+    ['today', 'yesterday', 'week', 'month', 'all'].forEach(p => {
+      const b = document.createElement('button'); b.type = 'button';
+      b.textContent = periodLabel(p);
+      b.disabled = !days.some(d => inRange(d.key, p));
+      b.setAttribute('aria-pressed', String(PERIOD === p));
+      b.onclick = () => setPeriod(p);
+      seg.appendChild(b);
+    });
+    const dp = document.getElementById('daypick');
+    dp.innerHTML = '<option value="">Pick a day…</option>' + [...days].reverse()
+      .map(d => '<option value="' + d.key + '"' + (PERIOD === 'day:' + d.key ? ' selected' : '') + '>' + niceDay(d.key) + (d.complete ? '' : ' (so far)') + '</option>').join('');
+    dp.onchange = () => { if (dp.value) setPeriod('day:' + dp.value); };
 
-    const sel = SEL === 'all' ? days : days.filter(d => d.key === SEL);
+    const sel = selDays();
     const T = sumTot(sel);
     const F = flows(T);
     const n = sel.length;
 
     // money
     const paid = T.buy * S.rate, without = T.load * S.rate, saved = without - paid, earned = T.sell * S.feed;
-    document.getElementById('saved').innerHTML = rand(saved + earned);
+    const PL = periodLabel();
+    document.getElementById('savedTitle').textContent = 'Saved on electricity · ' + PL;
+    document.getElementById('splitTitle').textContent = 'Where the house got its power · ' + PL;
+    document.querySelectorAll('.kpi .per').forEach(e => e.textContent = periodPhrase());
+    setNum('saved', saved + earned, rand);
     document.getElementById('savedSub').textContent =
-      kwh(T.load - T.buy) + ' kWh not bought from the grid at R' + S.rate.toFixed(2) + '/kWh' + (n > 1 ? ' over ' + n + ' days' : '');
-    document.getElementById('paid').textContent = rand(paid);
-    document.getElementById('without').textContent = rand(without);
-    document.getElementById('earned').textContent = rand(earned);
-    document.getElementById('earnedL').textContent = T.sell > 0 ? 'Earned from ' + kwh(T.sell) + ' kWh export' : 'Earned from export (export is off)';
+      kwh(T.load - T.buy) + ' kWh not bought from the grid at R' + S.rate.toFixed(2) + '/kWh';
+    setNum('paid', paid, rand);
+    setNum('without', without, rand);
+    if (T.sell > 0 || S.feed > 0) {
+      setNum('earned', earned, rand);
+      document.getElementById('earnedL').textContent = 'Earned from ' + kwh(T.sell) + ' kWh export';
+    } else {
+      // export is off: show CO2 avoided instead (South African grid ≈ 1 kg CO2 per kWh)
+      setNum('earned', Math.max(T.load - T.buy, 0), v => Math.round(v) + '<small style="font-size:.5em;color:var(--text-3);margin-left:3px">kg</small>');
+      document.getElementById('earnedL').textContent = 'CO₂ avoided (≈1 kg per grid kWh)';
+    }
     const self = T.load ? (T.load - T.buy) / T.load : 0;
-    document.getElementById('selfpct').textContent = pct(self);
+    setNum('selfpct', self, v => pct(v));
 
     // split bar
     const parts = [['Solar', F.fromSolar, '--solar'], ['Battery', F.fromBatt, '--battery'], ['Grid', F.fromGrid, '--grid']];
@@ -647,15 +754,17 @@ td.partial{color:var(--text-3)}
 
     // kpis
     const u = ' <small>kWh</small>';
-    document.getElementById('kSolar').innerHTML = kwh(T.pv) + u;
-    document.getElementById('kLoad').innerHTML = kwh(T.load) + u;
-    document.getElementById('kGrid').innerHTML = kwh(T.buy) + u;
+    const kf = v => kwh(v) + u;
+    setNum('kSolar', T.pv, kf);
+    setNum('kLoad', T.load, kf);
+    setNum('kGrid', T.buy, kf);
     document.getElementById('kGridD').textContent = 'imported · ' + rand(paid);
-    document.getElementById('kChg').innerHTML = kwh(T.chg) + u;
-    document.getElementById('kDis').innerHTML = kwh(T.dis) + u;
+    setNum('kChg', T.chg, kf);
+    setNum('kDis', T.dis, kf);
 
     drawFlow(T, F, n);
     renderLive();
+    renderStatus(T, sel);
     projection(days);
     insights(sel);
     hourChart(sel);
@@ -663,6 +772,71 @@ td.partial{color:var(--text-3)}
     socChart(sel);
     dayChart(days);
     table(days);
+  }
+
+  /* ---------- status headline ---------- */
+  function setText(id, txt){
+    const el = document.getElementById(id);
+    if (el.textContent === txt) return;
+    el.textContent = txt; el.classList.remove('rise'); void el.offsetWidth; el.classList.add('rise');
+  }
+  const dur = hrs => {
+    if (!isFinite(hrs) || hrs <= 0) return '';
+    const m = Math.round(hrs * 60);
+    return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + (m % 60) + ' min' : '');
+  };
+  function renderStatus(T, sel){
+    const now = new Date(), hr = now.getHours();
+    const greet = hr < 5 ? 'Late night' : hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
+    document.getElementById('hello').textContent = greet + (PLANT ? ' · ' + PLANT : '');
+    const NOW = nowState(), cap = S.cap || 16.07, res = S.reserve || 25;
+    let head, sub;
+    if (NOW) {
+      const pv = NOW.pvKw, load = NOW.loadKw, b = NOW.battKw, soc = NOW.soc, gridIn = NOW.gridIn ? NOW.gridKw : 0;
+      const mode = skyMode(pv, LIVE.flowAt || now);
+      const toFull = NOW.batt === 'charging' && b > 0.05 ? dur((100 - soc) / 100 * cap / b) : '';
+      const toRes = NOW.batt === 'discharging' && b > 0.05 ? dur(Math.max(soc - res, 0) / 100 * cap / b) : '';
+      const s0 = Math.round(soc) + '%';
+      if (load > 7) {
+        head = 'Big moment: the house is pulling ' + load.toFixed(1) + ' kW.';
+        sub = gridIn > 0.1 ? 'The grid is topping up ' + gridIn.toFixed(1) + ' kW. Anything above about 7.5 kW is more than the battery can give on its own.'
+                           : 'Solar and battery are covering all of it.';
+      } else if (gridIn > 0.2 && soc <= res + 2) {
+        head = 'Leaning on the grid for now.';
+        sub = 'The battery is resting at its ' + res + '% reserve. ' + (mode === 'night' ? 'Solar takes over again after sunrise.' : 'Solar takes over as soon as it picks up.');
+      } else if (gridIn > 0.2) {
+        head = 'Pulling ' + gridIn.toFixed(1) + ' kW from the grid.';
+        sub = 'The battery is at ' + s0 + ', so it should be helping. If this keeps happening, check Use Timer in the inverter settings.';
+      } else if (pv > 0.05 && soc >= 99) {
+        head = 'Battery full, and the sun is doing all the work.';
+        sub = 'Spare solar is being held back because export is off. Good time to run the geysers, dishwasher or pool pump.';
+      } else if (pv > 0.05 && NOW.batt === 'charging') {
+        head = mode === 'cloudy' ? 'Clouds about, but solar is still carrying the house.' : 'Running on sunshine and filling the battery.';
+        sub = 'Solar ' + pv.toFixed(1) + ' kW · house ' + load.toFixed(1) + ' kW · battery ' + s0 + (toFull ? ', full in about ' + toFull : '') + '. The grid is idle.';
+      } else if (pv > 0.05 && NOW.batt === 'discharging') {
+        head = mode === 'cloudy' ? 'Cloudy spell: the battery is filling the gap.' : 'The sun is helping, the battery covers the rest.';
+        sub = 'Solar ' + pv.toFixed(1) + ' kW · house ' + load.toFixed(1) + ' kW · battery ' + s0 + (toRes ? ', about ' + toRes + ' to the ' + res + '% reserve at this rate' : '') + '.';
+      } else if (pv > 0.05) {
+        head = 'Running on sunshine.';
+        sub = 'Solar ' + pv.toFixed(1) + ' kW is covering the house (' + load.toFixed(1) + ' kW). Battery at ' + s0 + '. The grid is idle.';
+      } else if (NOW.batt === 'discharging') {
+        head = mode === 'night' ? 'Night shift: the battery is carrying the house.' : 'The battery is carrying the house.';
+        sub = s0 + ' left' + (toRes ? ' · about ' + toRes + ' until the ' + res + '% reserve at ' + b.toFixed(1) + ' kW' : '') + '. The grid is idle.';
+      } else {
+        head = 'All quiet.';
+        sub = 'Battery at ' + s0 + '. Nothing much is flowing right now.';
+      }
+    } else {
+      const self = T.load ? (T.load - T.buy) / T.load : 0;
+      const ph = periodPhrase(), lead = PERIOD === 'today' ? 'So far today' : ph.charAt(0).toUpperCase() + ph.slice(1);
+      const verdict = self >= 0.9 ? ' Practically off-grid.' : self >= 0.75 ? ' A strong showing.' : self >= 0.5 ? '' : ' The grid did a lot of the work.';
+      head = lead + ' the house ran ' + pct(self) + ' on its own power.' + verdict;
+      let extra = '';
+      if (sel.length === 1) { const ev = batteryEvents(sel[0]); if (ev.emptyAt) extra = ' The battery carried the evening until ' + hm(ev.emptyAt) + '.'; else if (ev.minSoc != null && ev.minSoc > res + 3) extra = ' The battery never dropped below ' + ev.minSoc + '%.'; }
+      sub = 'Saved ' + rand((T.load - T.buy) * S.rate) + '. Solar made ' + kwh(T.pv) + ' kWh and the grid supplied ' + kwh(T.buy) + ' kWh.' + extra;
+    }
+    setText('headline', head);
+    setText('subline', sub);
   }
 
   /* ---------- flow direction (flags first, then power sign) ---------- */
@@ -686,7 +860,7 @@ td.partial{color:var(--text-3)}
   /* ---------- animated icons ---------- */
   // live state for "now", only when connected and today is selected
   function nowState(){
-    if (!LIVE.token || !LIVE.flow || (SEL !== 'all' && SEL !== dayKey(new Date()))) return null;
+    if (!LIVE.token || !LIVE.flow || !isTodayView()) return null;
     const f = LIVE.flow;
     return {soc:num(f.soc), batt: battDir(f),
       pvKw:Math.abs(num(f.pvPower))/1000, battKw:Math.abs(num(f.battPower))/1000, gridKw:Math.abs(num(f.gridOrMeterPower))/1000, loadKw:Math.abs(num(f.loadOrEpsPower))/1000,
@@ -742,6 +916,7 @@ td.partial{color:var(--text-3)}
   /* ---------- flow diagram ---------- */
   function drawFlow(T, F, n){
     const svg = document.getElementById('flowSvg');
+    const MOB = svg.clientWidth > 0 && svg.clientWidth < 520;
     const C = {x:320, y:180};
     const N = {
       solar:{x:84, y:52, label:'Solar', val:kwh(T.pv)+' kWh', sub:'generated', col:'var(--solar)', e:{x:C.x-56, y:C.y-16}},
@@ -813,33 +988,38 @@ td.partial{color:var(--text-3)}
     h += '<circle cx="' + C.x + '" cy="' + C.y + '" r="' + (R+10) + '" fill="var(--surface)" stroke="var(--line)"/>' +
          '<circle cx="' + C.x + '" cy="' + C.y + '" r="' + R + '" fill="none" stroke="var(--surface-2)" stroke-width="6"/>' +
          '<circle cx="' + C.x + '" cy="' + C.y + '" r="' + R + '" fill="none" stroke="var(--solar)" stroke-width="6" stroke-linecap="round" stroke-dasharray="' + (circ*self) + ' ' + circ + '" transform="rotate(-90 ' + C.x + ' ' + C.y + ')"/>' +
-         '<text x="' + C.x + '" y="' + (C.y+2) + '" text-anchor="middle" class="node-val" style="font-size:22px">' + pct(self) + '</text>' +
-         '<text x="' + C.x + '" y="' + (C.y+16) + '" text-anchor="middle" class="node-sub" style="font-size:8.5px;letter-spacing:.06em">SELF-POWERED</text>' +
-         '<text x="' + C.x + '" y="' + (C.y+27) + '" text-anchor="middle" class="node-sub" style="font-size:8px;letter-spacing:.1em;fill:var(--text-3)">' + (NOW ? 'NOW' : n > 1 ? n + ' DAYS' : SEL === dayKey(new Date()) ? 'TODAY' : 'THIS DAY') + '</text>';
+         '<text x="' + C.x + '" y="' + (C.y + (MOB ? 6 : 2)) + '" text-anchor="middle" class="node-val" style="font-size:' + (MOB ? 27 : 22) + 'px">' + pct(self) + '</text>' +
+         '<text x="' + C.x + '" y="' + (C.y + (MOB ? 21 : 16)) + '" text-anchor="middle" class="node-sub" style="font-size:' + (MOB ? 9.5 : 8.5) + 'px;letter-spacing:.04em">SELF-POWERED</text>' +
+         (MOB ? '' : '<text x="' + C.x + '" y="' + (C.y+27) + '" text-anchor="middle" class="node-sub" style="font-size:8px;letter-spacing:.1em;fill:var(--text-3)">' + (NOW ? 'NOW' : periodLabel().toUpperCase()) + '</text>');
     // battery level for the icon: live SOC, else the last reading of the selected day(s)
     let socNow = NOW ? NOW.soc : null;
     if (socNow == null && DATA) {
-      const sel = SEL === 'all' ? DATA.days : DATA.days.filter(d => d.key === SEL);
+      const sel = selDays();
       for (let i = sel.length - 1; i >= 0 && socNow == null; i--)
         for (let j = sel[i].rows.length - 1; j >= 0; j--) { const s = sel[i].rows[j].soc; if (isFinite(s) && s > 0) { socNow = s; break; } }
     }
     const pvNow = NOW ? NOW.pvKw : (T.pv > 0.05 ? 3 : 0);
+    const sky = NOW ? skyMode(NOW.pvKw, LIVE.flowAt || new Date()) : (T.pv > 0.05 ? 'sun' : 'night');
+    document.querySelector('.flow').dataset.sky = sky;
     if (socNow != null) {
       const st = NOW && NOW.batt !== 'idle' ? (NOW.batt === 'charging' ? ' ▲' : ' ▼') : '';
       N.batt.val = Math.round(socNow) + '%' + st;
       N.batt.label = NOW ? 'Battery' : 'Battery · last';
       N.batt.sub = NOW ? (NOW.batt === 'idle' ? 'idle now' : NOW.batt + ' ' + NOW.battKw.toFixed(1) + ' kW') : kwh(T.chg) + ' in · ' + kwh(T.dis) + ' out kWh';
     }
+    if (MOB) { N.batt.label = 'Battery'; N.solar.sub = N.solar.sub.replace(' now', ''); N.grid.sub = N.grid.sub.replace(' now', ''); N.house.sub = N.house.sub.replace(' now', ''); N.batt.sub = N.batt.sub.replace(/ kWh$/, '').replace(' in · ', ' in · '); }
     for (const [k, v] of Object.entries(N)) {
       let ic = icon[k];
-      if (k === 'solar') ic = svgSun(pvNow, 1, NOW ? skyMode(NOW.pvKw, LIVE.flowAt || new Date()) : (T.pv > 0.05 ? 'sun' : 'night'));
+      if (k === 'solar') ic = svgSun(pvNow, 1, sky);
       if (k === 'batt' && socNow != null) ic = svgBattV(socNow, NOW ? NOW.batt : 'idle');
       h += '<circle cx="' + v.x + '" cy="' + v.y + '" r="34" fill="var(--surface-2)" stroke="var(--line)"/>' +
            '<g transform="translate(' + v.x + ' ' + v.y + ') scale(1.45)" style="color:' + v.col + '">' + ic + '</g>';
       const tx = v.x < C.x ? v.x + 50 : v.x - 50, anchor = v.x < C.x ? 'start' : 'end';
-      h += '<text x="' + tx + '" y="' + (v.y - 6) + '" text-anchor="' + anchor + '" class="node-label">' + v.label + '</text>' +
-           '<text x="' + tx + '" y="' + (v.y + 17) + '" text-anchor="' + anchor + '" class="node-val">' + v.val + '</text>' +
-           '<text x="' + tx + '" y="' + (v.y + 33) + '" text-anchor="' + anchor + '" class="node-sub">' + v.sub + '</text>';
+      // phones: the diagram is scaled down ~0.55x, so use larger text and more spacing
+      const L = MOB ? {ly:-24, vy:10, sy:34, lf:17, vf:33, sf:17} : {ly:-6, vy:17, sy:33, lf:12, vf:22, sf:11.5};
+      h += '<text x="' + tx + '" y="' + (v.y + L.ly) + '" text-anchor="' + anchor + '" class="node-label" style="font-size:' + L.lf + 'px">' + v.label + '</text>' +
+           '<text x="' + tx + '" y="' + (v.y + L.vy) + '" text-anchor="' + anchor + '" class="node-val" style="font-size:' + L.vf + 'px">' + v.val + '</text>' +
+           '<text x="' + tx + '" y="' + (v.y + L.sy) + '" text-anchor="' + anchor + '" class="node-sub" style="font-size:' + L.sf + 'px">' + v.sub + '</text>';
     }
     svg.innerHTML = h;
   }
@@ -1193,7 +1373,7 @@ td.partial{color:var(--text-3)}
     document.getElementById('conDone').classList.remove('hidden');
     const btn = document.getElementById('liveBtn'); btn.innerHTML = '<span class="pulse"></span>Live';
     await liveLoadAll();
-    SEL = dayKey(new Date());
+    PERIOD = 'today';
     render();
     clearInterval(LIVE.timer);
     LIVE.timer = setInterval(async () => {
@@ -1284,6 +1464,8 @@ td.partial{color:var(--text-3)}
     } catch(e){ if (LIVE.token) liveLogout(); }
   })();
 
+  let rsz; addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { if (DATA) render(); }, 250); });
+
   /* ---------- file input & drag-drop ---------- */
   document.getElementById('file').addEventListener('change', e => { addFiles([...e.target.files]); e.target.value = ''; });
   const drop = document.getElementById('empty');
@@ -1292,7 +1474,7 @@ td.partial{color:var(--text-3)}
   document.addEventListener('drop', e => { const f = [...(e.dataTransfer?.files || [])]; if (f.length) addFiles(f); });
   document.getElementById('clearBtn').onclick = () => {
     if (LIVE.token) liveLogout();
-    RAW = new Map(); DAYTOT = new Map(); DATA = null; PLANT = ''; SEL = 'all';
+    RAW = new Map(); DAYTOT = new Map(); DATA = null; PLANT = ''; PERIOD = null;
     Object.values(charts).forEach(c => c.destroy());
     document.getElementById('dash').classList.add('hidden');
     document.getElementById('empty').classList.remove('hidden');
