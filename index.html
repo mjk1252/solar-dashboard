@@ -1,0 +1,1269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home Solar Dashboard</title>
+<meta name="description" content="Drop in a Sunsynk Connect Excel export to see solar, battery and grid usage, cost and savings.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.3.2/jsencrypt.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+<style>
+:root{
+  color-scheme: light;
+  --bg:#f4f4f2; --surface:#fcfcfb; --surface-2:#efeeea; --line:#e2e1dc;
+  --text:#0b0b0b; --text-2:#52514e; --text-3:#8a8984;
+  --solar:#eda100; --battery:#1baf7a; --grid:#6250d6;
+  --good:#0a7d0a; --accent:#0b0b0b; --accent-ink:#fcfcfb;
+  --grid-line:rgba(0,0,0,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --bg:#0e0e0d; --surface:#1a1a19; --surface-2:#232321; --line:#2c2c2a;
+    --text:#f0efec; --text-2:#c3c2b7; --text-3:#8d8c85;
+    --solar:#c98500; --battery:#199e70; --grid:#9085e9;
+    --good:#3fbf5a; --accent:#f0efec; --accent-ink:#0e0e0d;
+    --grid-line:rgba(255,255,255,.07);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#0e0e0d; --surface:#1a1a19; --surface-2:#232321; --line:#2c2c2a;
+  --text:#f0efec; --text-2:#c3c2b7; --text-3:#8d8c85;
+  --solar:#c98500; --battery:#199e70; --grid:#9085e9;
+  --good:#3fbf5a; --accent:#f0efec; --accent-ink:#0e0e0d;
+  --grid-line:rgba(255,255,255,.07);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;line-height:1.45}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px 64px}
+header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:22px 0 18px;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column}
+.brand h1{margin:0;font-size:15px;font-weight:500;letter-spacing:.18em;text-transform:uppercase}
+.brand .sub{font-size:13px;color:var(--text-3);margin-top:2px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+button,.btn{font:inherit;font-size:13px;font-weight:500;border:1px solid var(--line);background:var(--surface);color:var(--text);
+  padding:9px 14px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+button:hover,.btn:hover{border-color:var(--text-3)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--grid);outline-offset:2px}
+input[type=file]{display:none}
+
+/* empty state */
+.drop{margin-top:24px;border:1.5px dashed var(--line);border-radius:24px;background:var(--surface);
+  padding:72px 24px;text-align:center;transition:border-color .2s,background .2s}
+.drop.over{border-color:var(--solar);background:var(--surface-2)}
+.drop h2{font-weight:300;font-size:clamp(28px,5vw,44px);margin:0 0 10px;letter-spacing:-.02em}
+.drop p{color:var(--text-2);margin:0 auto 22px;max-width:520px}
+.drop ol{text-align:left;max-width:460px;margin:26px auto 0;color:var(--text-3);font-size:13px;padding-left:18px}
+.privacy{font-size:12px;color:var(--text-3);margin-top:16px}
+
+/* day chips */
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 22px}
+.chip{font-size:13px;padding:7px 13px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text-2)}
+.chip[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.chip .tag{font-size:10px;opacity:.7;margin-left:4px;text-transform:uppercase;letter-spacing:.06em}
+
+/* hero */
+.hero{display:grid;grid-template-columns:1.25fr 1fr;gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:22px}
+.eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-3);font-weight:500}
+.flow svg{width:100%;height:auto;display:block}
+.flow .node-label{font-size:12px;fill:var(--text-3);letter-spacing:.12em;text-transform:uppercase}
+.flow .node-val{font-size:22px;fill:var(--text);font-weight:300}
+.flow .node-sub{font-size:11.5px;fill:var(--text-2)}
+.flow .pipe{fill:none;stroke-width:2.5;stroke-linecap:round}
+.flow .pipe.base{stroke:var(--line)}
+.flow .pipe.live{stroke-dasharray:3 10;animation:dash 1.1s linear infinite}
+.flow .pipe-label{font-size:12px;fill:var(--text-2);font-weight:500}
+@keyframes dash{to{stroke-dashoffset:-13}}
+@media (prefers-reduced-motion: reduce){.flow .pipe.live{animation:none}}
+.money{display:flex;flex-direction:column;gap:14px}
+.big{font-size:clamp(40px,6vw,58px);font-weight:300;letter-spacing:-.03em;line-height:1}
+.big small{font-size:.42em;color:var(--text-3);font-weight:400;letter-spacing:0;margin-left:4px}
+.money .row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.stat .v{font-size:26px;font-weight:300;letter-spacing:-.01em}
+.stat .l{font-size:12.5px;color:var(--text-2)}
+.bar-split{display:flex;height:10px;border-radius:6px;overflow:hidden;gap:2px;background:var(--surface);margin:10px 0 8px}
+.bar-split span{display:block;height:100%}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--text-2)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+
+/* kpi row */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-top:16px}
+.kpi .v{font-size:28px;font-weight:300;letter-spacing:-.02em;margin-top:6px}
+.kpi .v small{font-size:13px;color:var(--text-3);margin-left:3px}
+.kpi .d{font-size:12px;color:var(--text-3);margin-top:2px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:1px}
+
+/* sections */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+.full{margin-top:16px}
+.card h3{margin:6px 0 2px;font-size:17px;font-weight:500;letter-spacing:-.01em}
+.card .hint{font-size:12.5px;color:var(--text-3);margin:0 0 14px}
+.chart-box{position:relative;height:260px}
+.chart-box.tall{height:300px}
+.sun-facts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:4px 0 14px}
+.sun-facts div .v{font-size:20px;font-weight:300}
+.sun-facts div .l{font-size:12px;color:var(--text-3)}
+.insights{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:10px}
+.insights li{display:flex;gap:12px;align-items:flex-start;font-size:14px;color:var(--text-2);padding:12px 14px;background:var(--surface-2);border-radius:14px}
+.insights li b{color:var(--text);font-weight:500}
+.insights .ic{flex:0 0 22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;color:#fff}
+
+/* table */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}
+th,td{text-align:right;padding:10px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-weight:500;color:var(--text-3);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase}
+tr:last-child td{border-bottom:0}
+td.partial{color:var(--text-3)}
+
+/* settings drawer */
+.settings{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:flex-end;z-index:20}
+.settings.open{display:flex}
+.panel{background:var(--surface);color:var(--text);width:min(380px,100%);height:100%;padding:26px;overflow:auto;border-left:1px solid var(--line)}
+.panel h2{margin:0 0 4px;font-weight:400;font-size:22px}
+.panel p{color:var(--text-3);font-size:13px;margin:0 0 20px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12.5px;color:var(--text-2);margin-bottom:6px}
+.field .in{display:flex;align-items:center;border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:0 12px}
+.field .in span{color:var(--text-3);font-size:14px}
+.field input{flex:1;border:0;background:transparent;color:var(--text);font:inherit;font-size:16px;padding:11px 8px;min-width:0}
+.field small{display:block;color:var(--text-3);font-size:11.5px;margin-top:5px}
+/* animated icons */
+.spin{animation:spin 16s linear infinite;transform-box:fill-box;transform-origin:center}
+.spin.fast{animation-duration:7s}
+@keyframes spin{to{transform:rotate(360deg)}}
+.glow{animation:glow 2.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes glow{0%,100%{opacity:.55;transform:scale(.92)}50%{opacity:1;transform:scale(1.06)}}
+.chev{opacity:0}
+.chev.up{animation:chevUp 1.4s ease-in infinite}
+.chev.down{animation:chevDown 1.4s ease-in infinite}
+.chev.d2{animation-delay:.47s}.chev.d3{animation-delay:.94s}
+@keyframes chevUp{0%{transform:translateY(7px);opacity:0}35%{opacity:1}100%{transform:translateY(-7px);opacity:0}}
+@keyframes chevDown{0%{transform:translateY(-7px);opacity:0}35%{opacity:1}100%{transform:translateY(7px);opacity:0}}
+.stripes{animation:stripes 1s linear infinite}
+.stripes.rev{animation-direction:reverse}
+@keyframes stripes{to{transform:translateX(12px)}}
+.batt-fill{transition:height .8s ease,width .8s ease,y .8s ease}
+@media (prefers-reduced-motion: reduce){.spin,.glow,.chev,.stripes{animation:none !important}.chev{opacity:.8}}
+.livebar .tile{position:relative;overflow:hidden}
+.livebar .tile .ico{position:absolute;right:12px;top:50%;transform:translateY(-50%);opacity:.95}
+@media (max-width: 520px){.livebar .tile .ico{top:auto;bottom:6px;right:8px;transform:scale(.62);transform-origin:bottom right}}
+
+/* live strip */
+.livebar{display:grid;grid-template-columns:repeat(4,1fr) auto;gap:12px;align-items:stretch;margin:0 0 16px}
+.livebar .tile{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px 16px}
+.livebar .tile .v{font-size:24px;font-weight:300;letter-spacing:-.01em;margin-top:4px}
+.livebar .tile .s{font-size:12px;color:var(--text-3)}
+.livebar .meta{display:flex;flex-direction:column;justify-content:center;gap:6px;font-size:12px;color:var(--text-3);padding:0 4px;min-width:120px}
+.pulse{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--good);margin-right:6px;box-shadow:0 0 0 0 var(--good);animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(63,191,90,.5)}70%{box-shadow:0 0 0 8px rgba(63,191,90,0)}100%{box-shadow:0 0 0 0 rgba(63,191,90,0)}}
+@media (prefers-reduced-motion: reduce){.pulse{animation:none}}
+.field select{flex:1;border:0;background:transparent;color:var(--text);font:inherit;font-size:15px;padding:11px 4px}
+.check{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--text-2);margin:4px 0 16px}
+.note{font-size:12px;color:var(--text-3);background:var(--surface-2);border-radius:12px;padding:10px 12px;margin:14px 0}
+.or{color:var(--text-3);font-size:13px;margin:14px 0 10px}
+@media (max-width: 960px){.livebar{grid-template-columns:repeat(2,1fr)}.livebar .meta{grid-column:1/-1;flex-direction:row;justify-content:space-between}}
+.foot{margin-top:28px;font-size:12px;color:var(--text-3);text-align:center}
+.err{margin-top:14px;color:#d03b3b;font-size:13px}
+.hidden{display:none !important}
+
+@media (max-width: 960px){
+  .hero{grid-template-columns:1fr}
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .grid2{grid-template-columns:1fr}
+}
+@media (max-width: 520px){
+  .wrap{padding:0 16px 48px}
+  .kpis{gap:10px}
+  .card{padding:18px;border-radius:18px}
+  .sun-facts{grid-template-columns:1fr 1fr}
+  .flow .pipe-label{display:none}
+  .flow .node-val{font-size:30px}
+  .flow .node-label,.flow .node-sub{font-size:17px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Home Solar</h1>
+      <span class="sub" id="subtitle">Sunsynk Connect report viewer</span>
+    </div>
+    <div class="actions">
+      <label class="btn primary" for="file">＋ Add export</label>
+      <input type="file" id="file" accept=".xlsx,.xls,.csv" multiple>
+      <button id="liveBtn" type="button">Connect Sunsynk</button>
+      <button id="openSettings" type="button">Rates &amp; costs</button>
+      <button id="themeBtn" type="button" aria-label="Toggle light or dark theme">◐</button>
+      <button id="clearBtn" type="button" class="hidden">Clear</button>
+    </div>
+  </header>
+
+  <!-- Empty state -->
+  <section id="empty" class="drop">
+    <h2>Drop your Sunsynk export here</h2>
+    <p>Drag in one or more inverter Excel reports from Sunsynk Connect, a single day or a whole month, and see where your power came from, what you paid and what you saved.</p>
+    <label class="btn primary" for="file">Choose Excel file</label>
+    <div class="or">or</div>
+    <button type="button" class="btn" id="liveBtn2">Connect your Sunsynk account (live)</button>
+    <ol>
+      <li>In Sunsynk Connect, open <b>Equipment → Inverter</b> and download the report (Excel) for the dates you want.</li>
+      <li>Drop the file here. You can add several files; overlapping rows are merged.</li>
+      <li>Set your price per kWh under <b>Rates &amp; costs</b>.</li>
+    </ol>
+    <div class="privacy">Your file is read in this browser only. Nothing is uploaded anywhere.</div>
+    <div class="err" id="err"></div>
+  </section>
+
+  <!-- Dashboard -->
+  <main id="dash" class="hidden">
+    <section class="livebar hidden" id="live" aria-live="polite"></section>
+    <div class="chips" id="chips" role="group" aria-label="Choose day"></div>
+
+    <section class="hero">
+      <div class="card flow">
+        <div class="eyebrow" id="flowTitle">Energy flow</div>
+        <svg id="flowSvg" viewBox="0 0 640 360" role="img" aria-label="Energy flow between solar, battery, grid and house"></svg>
+      </div>
+      <div class="card money">
+        <div>
+          <div class="eyebrow">Saved on electricity</div>
+          <div class="big" id="saved">R0</div>
+          <div class="stat l" id="savedSub" style="margin-top:8px;color:var(--text-2);font-size:13px"></div>
+        </div>
+        <div>
+          <div class="eyebrow">Where the house got its power</div>
+          <div class="bar-split" id="split"></div>
+          <div class="legend" id="splitLegend"></div>
+        </div>
+        <div class="row">
+          <div class="stat"><div class="v" id="paid">R0</div><div class="l">Paid for grid power</div></div>
+          <div class="stat"><div class="v" id="earned">R0</div><div class="l" id="earnedL">Earned from export</div></div>
+          <div class="stat"><div class="v" id="without">R0</div><div class="l">Would have paid without solar</div></div>
+          <div class="stat"><div class="v" id="selfpct">0%</div><div class="l">Self-powered</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="kpis">
+      <div class="card kpi"><div class="eyebrow"><span class="dot" style="background:var(--solar)"></span>Solar</div><div class="v" id="kSolar">0</div><div class="d">generated</div></div>
+      <div class="card kpi"><div class="eyebrow">House</div><div class="v" id="kLoad">0</div><div class="d">used</div></div>
+      <div class="card kpi"><div class="eyebrow"><span class="dot" style="background:var(--grid)"></span>Grid</div><div class="v" id="kGrid">0</div><div class="d" id="kGridD">imported</div></div>
+      <div class="card kpi"><div class="eyebrow"><span class="dot" style="background:var(--battery)"></span>Battery in</div><div class="v" id="kChg">0</div><div class="d">charged</div></div>
+      <div class="card kpi"><div class="eyebrow"><span class="dot" style="background:var(--battery)"></span>Battery out</div><div class="v" id="kDis">0</div><div class="d">discharged</div></div>
+    </section>
+
+    <section class="grid2">
+      <div class="card">
+        <div class="eyebrow">Monthly outlook</div>
+        <h3 id="projTitle">Estimated 30-day bill</h3>
+        <p class="hint" id="projHint">Based on the complete days loaded.</p>
+        <div class="big" id="projBill">R0</div>
+        <div class="sun-facts" style="margin-top:18px">
+          <div><div class="v" id="projSave">R0</div><div class="l">saved / month</div></div>
+          <div><div class="v" id="projWithout">R0</div><div class="l">bill without solar</div></div>
+          <div><div class="v" id="projPayback">-</div><div class="l" id="projPaybackL">payback</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="eyebrow">What stood out</div>
+        <ul class="insights" id="insights"></ul>
+      </div>
+    </section>
+
+    <section class="card full">
+      <div class="eyebrow">Hour by hour</div>
+      <h3 id="hourTitle">Where the house got its power</h3>
+      <p class="hint" id="hourHint">kWh per hour. Hover a bar for the split.</p>
+      <div class="legend" style="margin-bottom:10px">
+        <span><i style="background:var(--solar)"></i>Solar (direct)</span>
+        <span><i style="background:var(--battery)"></i>Battery</span>
+        <span><i style="background:var(--grid)"></i>Grid</span>
+      </div>
+      <div class="chart-box tall"><canvas id="hourChart" aria-label="Hourly energy by source"></canvas></div>
+    </section>
+
+    <section class="grid2">
+      <div class="card">
+        <div class="eyebrow">Peak sun</div>
+        <h3>Solar production</h3>
+        <p class="hint" id="sunHint">Solar power through the day.</p>
+        <div class="sun-facts">
+          <div><div class="v" id="sunPeak">-</div><div class="l">peak output</div></div>
+          <div><div class="v" id="sunPeakAt">-</div><div class="l">peak time</div></div>
+          <div><div class="v" id="sunWindow">-</div><div class="l">strong-sun window</div></div>
+        </div>
+        <div class="chart-box"><canvas id="sunChart" aria-label="Solar power curve"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="eyebrow">Battery</div>
+        <h3>Battery level</h3>
+        <p class="hint" id="socHint">State of charge over time.</p>
+        <div class="sun-facts">
+          <div><div class="v" id="socMin">-</div><div class="l">lowest</div></div>
+          <div><div class="v" id="socEmpty">-</div><div class="l" id="socEmptyL">hit reserve at</div></div>
+          <div><div class="v" id="socFull">-</div><div class="l">full at</div></div>
+        </div>
+        <div class="chart-box"><canvas id="socChart" aria-label="Battery state of charge"></canvas></div>
+      </div>
+    </section>
+
+    <section class="card full" id="dailyCard">
+      <div class="eyebrow">Day by day</div>
+      <h3>Daily totals</h3>
+      <p class="hint">kWh the house used each day, by source.</p>
+      <div class="legend" style="margin-bottom:10px">
+        <span><i style="background:var(--solar)"></i>Solar (direct)</span>
+        <span><i style="background:var(--battery)"></i>Battery</span>
+        <span><i style="background:var(--grid)"></i>Grid</span>
+      </div>
+      <div class="chart-box"><canvas id="dayChart" aria-label="Daily energy by source"></canvas></div>
+    </section>
+
+    <section class="card full">
+      <div class="eyebrow">Table</div>
+      <h3>All figures</h3>
+      <p class="hint">Daily totals from the inverter's own counters. Greyed rows are incomplete days.</p>
+      <div class="tbl-wrap"><table id="tbl"></table></div>
+    </section>
+
+    <div class="foot">Data stays in your browser. Figures are from the inverter's daily counters; hourly charts are worked out from 5-minute power readings, so they can differ slightly.</div>
+  </main>
+</div>
+
+<!-- Settings -->
+<div class="settings" id="settings" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+  <div class="panel">
+    <h2 id="setTitle">Rates &amp; costs</h2>
+    <p>Saved in this browser for next time.</p>
+    <div class="field"><label for="rate">Electricity price</label>
+      <div class="in"><span>R</span><input id="rate" type="number" step="0.01" min="0" inputmode="decimal"><span>/ kWh</span></div>
+      <small>What you pay the municipality or Eskom per kWh, incl. VAT.</small></div>
+    <div class="field"><label for="feed">Feed-in rate (export)</label>
+      <div class="in"><span>R</span><input id="feed" type="number" step="0.01" min="0" inputmode="decimal"><span>/ kWh</span></div>
+      <small>What you're paid for power sent to the grid. Leave at 0 if you don't sell back.</small></div>
+    <div class="field"><label for="fixed">Fixed monthly charges</label>
+      <div class="in"><span>R</span><input id="fixed" type="number" step="1" min="0" inputmode="decimal"><span>/ month</span></div>
+      <small>Service and network fees you pay no matter what. Used in the monthly outlook.</small></div>
+    <div class="field"><label for="cost">System cost</label>
+      <div class="in"><span>R</span><input id="cost" type="number" step="100" min="0" inputmode="decimal"></div>
+      <small>Optional. Used to estimate payback time.</small></div>
+    <div class="field"><label for="reserve">Battery reserve</label>
+      <div class="in"><input id="reserve" type="number" step="1" min="0" max="100" inputmode="numeric"><span>%</span></div>
+      <small>Your Use Timer SOC. Used to spot when the battery ran out.</small></div>
+    <button class="btn primary" id="closeSettings" type="button" style="margin-top:8px">Done</button>
+  </div>
+</div>
+
+<!-- Live connect -->
+<div class="settings" id="connect" role="dialog" aria-modal="true" aria-labelledby="conTitle">
+  <div class="panel">
+    <h2 id="conTitle">Connect Sunsynk</h2>
+    <p>Pull data live from your Sunsynk Connect account. It refreshes every 5 minutes while this page is open.</p>
+    <form id="conForm">
+      <div id="conLogin">
+        <div class="field"><label for="conUser">Sunsynk Connect email</label>
+          <div class="in"><input id="conUser" type="email" autocomplete="username" required></div></div>
+        <div class="field"><label for="conPass">Password</label>
+          <div class="in"><input id="conPass" type="password" autocomplete="current-password" required></div></div>
+        <label class="check"><input type="checkbox" id="conRemember"> Stay signed in on this device</label>
+        <button class="btn primary" type="submit" id="conGo">Connect</button>
+      </div>
+    </form>
+    <div id="conDone" class="hidden">
+      <div class="field"><label for="conPlant">Plant</label>
+        <div class="in"><select id="conPlant"></select></div></div>
+      <button class="btn" type="button" id="conRefresh">Refresh now</button>
+      <button class="btn" type="button" id="conOut">Disconnect</button>
+    </div>
+    <div class="err" id="conErr"></div>
+    <div class="note">Your login goes straight from this browser to Sunsynk (api.sunsynk.net). It isn't sent anywhere else, and the password is never saved. "Stay signed in" keeps only the session token on this device.<br><br>This uses Sunsynk's unofficial web API. It may stop working if Sunsynk changes it.</div>
+    <button class="btn" type="button" id="conDebug">Copy debug info</button>
+    <button class="btn" type="button" id="conClose" style="margin-left:6px">Close</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  /* ---------- settings ---------- */
+  const DEF = {rate:5, feed:0, fixed:0, cost:0, reserve:25};
+  const store = {
+    get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+    set(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
+  };
+  let S = {...DEF};
+  try { Object.assign(S, JSON.parse(store.get('solar.settings') || '{}')); } catch(e){}
+  const ids = ['rate','feed','fixed','cost','reserve'];
+  ids.forEach(k => {
+    const el = document.getElementById(k);
+    el.value = S[k];
+    el.addEventListener('input', () => {
+      const v = parseFloat(el.value);
+      S[k] = isFinite(v) ? v : 0;
+      store.set('solar.settings', JSON.stringify(S));
+      if (DATA) render();
+    });
+  });
+  const settingsEl = document.getElementById('settings');
+  document.getElementById('openSettings').onclick = () => { settingsEl.classList.add('open'); document.getElementById('rate').focus(); };
+  document.getElementById('closeSettings').onclick = () => settingsEl.classList.remove('open');
+  settingsEl.addEventListener('click', e => { if (e.target === settingsEl) settingsEl.classList.remove('open'); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') settingsEl.classList.remove('open'); });
+
+  /* ---------- theme ---------- */
+  const savedTheme = store.get('solar.theme');
+  if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+  document.getElementById('themeBtn').onclick = () => {
+    const cur = document.documentElement.dataset.theme ||
+      (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const next = cur === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    store.set('solar.theme', next);
+    if (DATA) render();
+  };
+  matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => { if (DATA) render(); });
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  /* ---------- formatting ---------- */
+  const kwh = v => (v >= 100 ? v.toFixed(0) : v.toFixed(1));
+  const rand = v => {
+    const n = Math.round(v);
+    return (n < 0 ? '−R' : 'R') + Math.abs(n).toLocaleString('en-ZA').replace(/ /g, ' ');
+  };
+  const pct = v => (isFinite(v) ? Math.round(v * 100) : 0) + '%';
+  const hm = d => d ? String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') : '-';
+  const dayKey = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  const niceDay = k => {
+    const [y,m,d] = k.split('-').map(Number);
+    return new Date(y, m-1, d).toLocaleDateString('en-ZA', {weekday:'short', day:'numeric', month:'short'});
+  };
+
+  /* ---------- parsing ---------- */
+  const COLS = {
+    dayPV:   /^day pv power/i,
+    dayLoad: /^day_load_power/i,
+    dayBuy:  /^day_grid buy/i,
+    daySell: /^day_grid sell/i,
+    dayChg:  /^day_batt_charge/i,
+    dayDis:  /^day_batt_discharge/i,
+    soc:     /^battery soc\(%\)/i,
+    gridP:   /^grid total power\(w\)/i,
+    battP:   /^battery output power\(w\)/i,
+    upsP:    /^ups load total power/i,
+    loadP:   /^load side total power/i,
+  };
+  const PVCOL = /^pv\d+ input power\(w\)/i;
+  const clean = s => String(s ?? '').replace(/\/[\d\-]+\s*$/, '').trim();
+
+  function toDate(v){
+    if (v instanceof Date) return v;
+    if (typeof v === 'number') { // Excel serial date
+      const ms = Math.round((v - 25569) * 86400000);
+      const d = new Date(ms);
+      return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds());
+    }
+    const m = String(v).match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+    if (!m) return null;
+    return new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +(m[6]||0));
+  }
+
+  function parseSheet(rows){
+    let plant = '';
+    const hIdx = rows.findIndex(r => r && r.some(c => String(c).trim() === 'Time'));
+    if (hIdx < 0) throw new Error('This file doesn\'t look like a Sunsynk inverter export (no "Time" column).');
+    for (let i = 0; i < hIdx; i++) if (String(rows[i][0]).trim() === 'Plant Name') plant = String(rows[i][1] || '');
+    const header = rows[hIdx].map(clean);
+    const tIdx = header.indexOf('Time');
+    const idx = {};
+    for (const [k, re] of Object.entries(COLS)) idx[k] = header.findIndex(h => re.test(h));
+    const pvIdx = header.map((h,i) => PVCOL.test(h) ? i : -1).filter(i => i >= 0);
+    if (idx.dayLoad < 0 && idx.upsP < 0) throw new Error('Couldn\'t find the load columns in this file.');
+    const num = (r, i) => { if (i < 0) return NaN; const v = parseFloat(r[i]); return isFinite(v) ? v : NaN; };
+    const out = [];
+    for (let i = hIdx + 1; i < rows.length; i++) {
+      const r = rows[i]; if (!r || r[tIdx] == null || r[tIdx] === '') continue;
+      const t = toDate(r[tIdx]); if (!t || isNaN(t)) continue;
+      const ups = num(r, idx.upsP), ld = num(r, idx.loadP);
+      out.push({
+        t,
+        dayPV: num(r, idx.dayPV), dayLoad: num(r, idx.dayLoad), dayBuy: num(r, idx.dayBuy),
+        daySell: num(r, idx.daySell), dayChg: num(r, idx.dayChg), dayDis: num(r, idx.dayDis),
+        soc: num(r, idx.soc),
+        grid: num(r, idx.gridP), batt: num(r, idx.battP),
+        load: Math.max(isFinite(ups) ? ups : 0, isFinite(ld) ? ld : 0),
+        pv: pvIdx.reduce((s, i) => s + (num(r, i) || 0), 0),
+      });
+    }
+    return {plant, rows: out};
+  }
+
+  /* ---------- state ---------- */
+  let RAW = new Map();   // time-ms -> row
+  let DAYTOT = new Map(); // day key -> totals from the live API (overrides counters)
+  let PLANT = '';
+  let DATA = null;       // derived
+  let SEL = 'all';
+  const charts = {};
+
+  async function addFiles(files){
+    const errEl = document.getElementById('err'); errEl.textContent = '';
+    for (const f of files) {
+      try {
+        const buf = await f.arrayBuffer();
+        const wb = XLSX.read(buf, {type:'array'});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:null});
+        const p = parseSheet(rows);
+        if (p.plant) PLANT = p.plant;
+        p.rows.forEach(r => RAW.set(r.t.getTime(), r));
+      } catch (e) {
+        errEl.textContent = f.name + ': ' + e.message;
+        document.getElementById('empty').classList.remove('hidden');
+      }
+    }
+    if (RAW.size) { derive(); SEL = 'all'; render(); }
+  }
+
+  /* ---------- derive ---------- */
+  function derive(){
+    const rows = [...RAW.values()].sort((a,b) => a.t - b.t);
+    const days = new Map();
+    rows.forEach((r, i) => {
+      const k = dayKey(r.t);
+      if (!days.has(k)) days.set(k, {key:k, rows:[], hourly:Array.from({length:24}, () => ({solar:0, batt:0, grid:0, pv:0}))});
+      const D = days.get(k); D.rows.push(r);
+      // integrate power to the next reading (cap gaps at 15 min)
+      const nx = rows[i+1];
+      let dtH = nx ? (nx.t - r.t) / 3.6e6 : 5/60;
+      if (!(dtH > 0) || dtH > 0.25) dtH = 5/60;
+      const L = Math.max(r.load || 0, 0);
+      const G = Math.max(r.grid || 0, 0);
+      const B = Math.max(r.batt || 0, 0);
+      const S = Math.max(L - G - B, 0);
+      const h = D.hourly[r.t.getHours()];
+      h.solar += S * dtH / 1000; h.batt += Math.min(B, L) * dtH / 1000; h.grid += Math.min(G, L) * dtH / 1000;
+      h.pv += (r.pv || 0) * dtH / 1000;
+    });
+    const todayK = dayKey(new Date());
+    DAYTOT.forEach((_, k) => { if (!days.has(k)) days.set(k, {key:k, rows:[], hourly:Array.from({length:24}, () => ({solar:0, batt:0, grid:0, pv:0}))}); });
+    const list = [...days.values()].sort((a,b) => a.key < b.key ? -1 : 1).map(D => {
+      const mx = f => D.rows.reduce((m, r) => isFinite(r[f]) ? Math.max(m, r[f]) : m, 0);
+      const first = D.rows.length ? D.rows[0].t : null, last = D.rows.length ? D.rows[D.rows.length-1].t : null;
+      let tot = {pv:mx('dayPV'), load:mx('dayLoad'), buy:mx('dayBuy'), sell:mx('daySell'), chg:mx('dayChg'), dis:mx('dayDis')};
+      // fallback to integration if counters missing
+      const integ = {load:D.hourly.reduce((s,h) => s + h.solar + h.batt + h.grid, 0), buy:D.hourly.reduce((s,h) => s + h.grid, 0), pv:D.hourly.reduce((s,h) => s + h.pv, 0)};
+      if (!tot.load) tot.load = integ.load;
+      if (!tot.buy) tot.buy = integ.buy;
+      if (!tot.pv) tot.pv = integ.pv;
+      let complete;
+      if (DAYTOT.has(D.key)) { tot = {...tot, ...DAYTOT.get(D.key)}; complete = D.key < todayK; }
+      else complete = !!first && first.getHours() === 0 && first.getMinutes() < 20 && (last.getHours() > 23 || (last.getHours() === 23 && last.getMinutes() >= 40));
+      return {...D, tot, first, last, complete};
+    });
+    DATA = {rows, days:list};
+  }
+
+  function flows(t){
+    const fromBatt = Math.min(t.dis, t.load);
+    const fromGrid = Math.min(t.buy, Math.max(t.load - fromBatt, 0));
+    const fromSolar = Math.max(t.load - fromGrid - fromBatt, 0);
+    return {fromSolar, fromBatt, fromGrid};
+  }
+  function sumTot(days){
+    return days.reduce((a, d) => { for (const k in d.tot) a[k] = (a[k]||0) + d.tot[k]; return a; },
+      {pv:0, load:0, buy:0, sell:0, chg:0, dis:0});
+  }
+
+  /* ---------- render ---------- */
+  function render(){
+    document.getElementById('empty').classList.add('hidden');
+    document.getElementById('dash').classList.remove('hidden');
+    document.getElementById('clearBtn').classList.remove('hidden');
+    const days = DATA.days;
+    const span = days.length === 1 ? niceDay(days[0].key) : niceDay(days[0].key) + ' – ' + niceDay(days[days.length-1].key);
+    document.getElementById('subtitle').textContent = (PLANT ? PLANT + ' · ' : '') + span;
+
+    // chips
+    const chips = document.getElementById('chips'); chips.innerHTML = '';
+    const mk = (key, label, tag) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'chip';
+      b.setAttribute('aria-pressed', String(SEL === key));
+      b.innerHTML = label + (tag ? '<span class="tag">' + tag + '</span>' : '');
+      b.onclick = async () => {
+        SEL = key;
+        const d = DATA.days.find(x => x.key === key);
+        if (LIVE.token && d && !d.rows.length) { b.textContent = 'Loading…'; try { await liveDay(key); derive(); } catch(e){} }
+        render();
+      };
+      chips.appendChild(b);
+    };
+    if (days.length > 1) mk('all', 'All ' + days.length + ' days');
+    days.forEach(d => mk(d.key, niceDay(d.key), d.complete ? '' : 'partial'));
+    if (days.length === 1) SEL = days[0].key;
+
+    const sel = SEL === 'all' ? days : days.filter(d => d.key === SEL);
+    const T = sumTot(sel);
+    const F = flows(T);
+    const n = sel.length;
+
+    // money
+    const paid = T.buy * S.rate, without = T.load * S.rate, saved = without - paid, earned = T.sell * S.feed;
+    document.getElementById('saved').innerHTML = rand(saved + earned);
+    document.getElementById('savedSub').textContent =
+      kwh(T.load - T.buy) + ' kWh not bought from the grid at R' + S.rate.toFixed(2) + '/kWh' + (n > 1 ? ' over ' + n + ' days' : '');
+    document.getElementById('paid').textContent = rand(paid);
+    document.getElementById('without').textContent = rand(without);
+    document.getElementById('earned').textContent = rand(earned);
+    document.getElementById('earnedL').textContent = T.sell > 0 ? 'Earned from ' + kwh(T.sell) + ' kWh export' : 'Earned from export (export is off)';
+    const self = T.load ? (T.load - T.buy) / T.load : 0;
+    document.getElementById('selfpct').textContent = pct(self);
+
+    // split bar
+    const parts = [['Solar', F.fromSolar, '--solar'], ['Battery', F.fromBatt, '--battery'], ['Grid', F.fromGrid, '--grid']];
+    const totalUse = F.fromSolar + F.fromBatt + F.fromGrid || 1;
+    document.getElementById('split').innerHTML = parts.filter(p => p[1] > 0)
+      .map(p => '<span style="width:' + (p[1]/totalUse*100) + '%;background:var(' + p[2] + ')" title="' + p[0] + ' ' + kwh(p[1]) + ' kWh"></span>').join('');
+    document.getElementById('splitLegend').innerHTML = parts
+      .map(p => '<span><i style="background:var(' + p[2] + ')"></i>' + p[0] + ' <b style="color:var(--text);font-weight:500">' + pct(p[1]/totalUse) + '</b> · ' + kwh(p[1]) + ' kWh</span>').join('');
+
+    // kpis
+    const u = ' <small>kWh</small>';
+    document.getElementById('kSolar').innerHTML = kwh(T.pv) + u;
+    document.getElementById('kLoad').innerHTML = kwh(T.load) + u;
+    document.getElementById('kGrid').innerHTML = kwh(T.buy) + u;
+    document.getElementById('kGridD').textContent = 'imported · ' + rand(paid);
+    document.getElementById('kChg').innerHTML = kwh(T.chg) + u;
+    document.getElementById('kDis').innerHTML = kwh(T.dis) + u;
+
+    drawFlow(T, F, n);
+    projection(days);
+    insights(sel);
+    hourChart(sel);
+    sunChart(sel);
+    socChart(sel);
+    dayChart(days);
+    table(days);
+  }
+
+  /* ---------- flow direction (flags first, then power sign) ---------- */
+  const truthy = v => v === true || v === 1 || v === '1' || String(v).toLowerCase() === 'true';
+  function battDir(f){
+    const p = num(f.battPower);
+    if (truthy(f.toBat)) return 'charging';
+    if (truthy(f.batTo)) return 'discharging';
+    if (Math.abs(p) < 30) return 'idle';
+    // no flags: Sunsynk reports battery power as negative while charging
+    return p < 0 ? 'charging' : 'discharging';
+  }
+  function gridDir(f){
+    const p = num(f.gridOrMeterPower);
+    if (truthy(f.gridTo)) return 'importing';
+    if (truthy(f.toGrid)) return 'exporting';
+    if (Math.abs(p) < 30) return 'idle';
+    return p > 0 ? 'importing' : 'exporting';
+  }
+
+  /* ---------- animated icons ---------- */
+  // live state for "now", only when connected and today is selected
+  function nowState(){
+    if (!LIVE.token || !LIVE.flow || (SEL !== 'all' && SEL !== dayKey(new Date()))) return null;
+    const f = LIVE.flow;
+    return {soc:num(f.soc), batt: battDir(f),
+      pvKw:Math.abs(num(f.pvPower))/1000, battKw:Math.abs(num(f.battPower))/1000, gridKw:Math.abs(num(f.gridOrMeterPower))/1000, loadKw:Math.abs(num(f.loadOrEpsPower))/1000,
+      gridIn: gridDir(f) === 'importing'};
+  }
+  // sun: rays spin and grow with output
+  function svgSun(kw, size){
+    const s = size || 1, inten = Math.max(0, Math.min(kw / 6, 1));
+    const rays = Array.from({length:8}, (_, i) => {
+      const a = i * Math.PI / 4, r1 = 8.5, r2 = 11 + inten * 5;
+      return '<line x1="' + (Math.cos(a)*r1).toFixed(2) + '" y1="' + (Math.sin(a)*r1).toFixed(2) + '" x2="' + (Math.cos(a)*r2).toFixed(2) + '" y2="' + (Math.sin(a)*r2).toFixed(2) + '"/>';
+    }).join('');
+    const on = kw > 0.05;
+    return '<g transform="scale(' + s + ')" style="color:var(--solar)">' +
+      (on ? '<circle r="' + (9 + inten*6) + '" fill="currentColor" opacity=".18" class="glow"/>' : '') +
+      '<g class="' + (on ? 'spin' + (inten > .6 ? ' fast' : '') : '') + '" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity="' + (on ? 1 : .35) + '">' + rays + '</g>' +
+      '<circle r="6" fill="' + (on ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="1.8"/></g>';
+  }
+  // vertical battery: fill = SOC, chevrons show direction
+  function svgBattV(soc, state){
+    const h = 24, fh = Math.max(1.5, h * Math.max(0, Math.min(soc, 100)) / 100);
+    const dir = state === 'charging' ? 'up' : state === 'discharging' ? 'down' : '';
+    const chev = dir ? [1,2,3].map(i => '<path class="chev ' + dir + ' d' + i + '" d="' + (dir === 'up' ? 'M-3.5 2 L0 -1.5 L3.5 2' : 'M-3.5 -2 L0 1.5 L3.5 -2') + '" fill="none" stroke="var(--surface)" stroke-width="1.8" stroke-linecap="round"/>').join('') : '';
+    return '<g style="color:var(--battery)">' +
+      '<rect x="-9" y="-13" width="18" height="27" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/>' +
+      '<rect x="-3.5" y="-16" width="7" height="3" rx="1" fill="currentColor"/>' +
+      '<rect class="batt-fill" x="-6.5" y="' + (11.5 - fh) + '" width="13" height="' + fh + '" rx="1.5" fill="currentColor"/>' +
+      '<g transform="translate(0 ' + (11.5 - fh/2) + ')">' + (fh > 8 ? chev : '') + '</g></g>';
+  }
+  // horizontal battery for the live tile, with moving stripes
+  let stripeId = 0;
+  function svgBattH(soc, state){
+    const w = 52, fw = Math.max(2, w * Math.max(0, Math.min(soc, 100)) / 100), id = 'bs' + (++stripeId);
+    const moving = state === 'charging' || state === 'discharging';
+    return '<svg width="74" height="36" viewBox="0 0 74 36" aria-hidden="true" style="color:var(--battery)">' +
+      '<defs><clipPath id="' + id + '"><rect x="6" y="8" width="' + fw + '" height="20" rx="3"/></clipPath></defs>' +
+      '<rect x="3" y="5" width="58" height="26" rx="6" fill="none" stroke="currentColor" stroke-width="2"/>' +
+      '<rect x="63" y="13" width="4" height="10" rx="1.5" fill="currentColor"/>' +
+      '<rect class="batt-fill" x="6" y="8" width="' + fw + '" height="20" rx="3" fill="currentColor"/>' +
+      (moving ? '<g clip-path="url(#' + id + ')"><g class="stripes' + (state === 'discharging' ? ' rev' : '') + '" opacity=".28">' +
+        Array.from({length:10}, (_, i) => '<path d="M' + (i*12 - 12) + ' 30 L' + (i*12) + ' 6" stroke="var(--surface)" stroke-width="4"/>').join('') + '</g></g>' : '') +
+      (state === 'charging' ? '<path d="M35 9 L28 19 H33 L30 27 L38 16 H33 Z" fill="var(--surface)" class="glow"/>' : '') +
+      '</svg>';
+  }
+
+  /* ---------- flow diagram ---------- */
+  function drawFlow(T, F, n){
+    document.getElementById('flowTitle').textContent = 'Energy flow' + (n > 1 ? ' · ' + n + ' days' : '');
+    const svg = document.getElementById('flowSvg');
+    const C = {x:320, y:180};
+    const N = {
+      solar:{x:90, y:58, label:'Solar', val:kwh(T.pv)+' kWh', sub:'generated', col:'var(--solar)', e:{x:C.x-46, y:C.y-14}},
+      grid:{x:550, y:58, label:'Grid', val:kwh(T.buy)+' kWh', sub:T.sell>0 ? 'imported · '+kwh(T.sell)+' exported' : 'imported', col:'var(--grid)', e:{x:C.x+46, y:C.y-14}},
+      batt:{x:90, y:302, label:'Battery', val:kwh(T.chg)+' in', sub:kwh(T.dis)+' kWh out', col:'var(--battery)', e:{x:C.x-46, y:C.y+14}},
+      house:{x:550, y:302, label:'House', val:kwh(T.load)+' kWh', sub:'used', col:'var(--text)', e:{x:C.x+46, y:C.y+14}},
+    };
+    const icon = {
+      solar:'<g stroke="currentColor" stroke-width="1.6" fill="none"><path d="M-14 6 L-9 -6 L9 -6 L14 6 Z"/><path d="M-11.5 0 H11.5 M-3 -6 L-4.5 6 M3 -6 L4.5 6"/><path d="M0 6 V11 M-6 11 H6"/></g>',
+      grid:'<g stroke="currentColor" stroke-width="1.6" fill="none"><path d="M-8 12 L0 -12 L8 12 M-5 3 H5 M-10 -6 H10 M-3 -6 L-6 3 M3 -6 L6 3"/></g>',
+      batt:'<g stroke="currentColor" stroke-width="1.6" fill="none"><rect x="-8" y="-11" width="16" height="23" rx="2.5"/><path d="M-3 -14 H3"/><path d="M-4.5 6 H4.5 M-4.5 1 H4.5 M-4.5 -4 H4.5"/></g>',
+      house:'<g stroke="currentColor" stroke-width="1.6" fill="none"><path d="M-12 -1 L0 -11 L12 -1"/><path d="M-9 -3 V11 H9 V-3"/><path d="M-3 11 V4 H3 V11"/></g>',
+    };
+    // each node gets its own curve into the hub; live dashes run toward the house
+    const curve = (a, rev) => {
+      const p = 'M' + a.x + ' ' + (a.y + (a.y < C.y ? 26 : -26)) + ' Q ' + a.x + ' ' + a.e.y + ' ' + a.e.x + ' ' + a.e.y;
+      if (!rev) return p;
+      return 'M' + a.e.x + ' ' + a.e.y + ' Q ' + a.x + ' ' + a.e.y + ' ' + a.x + ' ' + (a.y + (a.y < C.y ? 26 : -26));
+    };
+    const NOW = nowState();
+    // with live data, flows run at a speed that matches the power right now
+    const speed = kw => kw == null ? '' : ';animation-duration:' + Math.max(0.35, 1.8 - Math.min(kw, 8) * 0.18).toFixed(2) + 's';
+    const nowKw = {solar: NOW ? NOW.pvKw : null, grid: NOW ? (NOW.gridIn ? NOW.gridKw : 0) : null,
+      batt: NOW ? (NOW.batt === 'discharging' ? NOW.battKw : 0) : null, house: NOW ? NOW.loadKw : null};
+    const pipe = (a, val, col, lines, rev, nk) => {
+      const d = curve(a, rev);
+      const left = a.x < C.x, lx = left ? a.x + 14 : a.x - 14, my = (a.y + a.e.y) / 2 + (a.y < C.y ? 10 : -14);
+      const flowing = nk == null ? val > 0.05 : nk > 0.03;
+      // glowing dots travel along the line in the direction power flows; faster = more power
+      const dur = nk == null ? 2.4 : Math.max(0.9, 3.2 - Math.min(nk, 8) * 0.3);
+      const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const dots = flowing && !reduce ? [0, 1, 2].map(i =>
+        '<circle r="4" style="fill:' + col + ';opacity:.25"><animateMotion dur="' + dur.toFixed(2) + 's" begin="-' + (i*dur/3).toFixed(2) + 's" repeatCount="indefinite" path="' + d + '"/></circle>' +
+        '<circle r="2.4" style="fill:' + col + '"><animateMotion dur="' + dur.toFixed(2) + 's" begin="-' + (i*dur/3).toFixed(2) + 's" repeatCount="indefinite" path="' + d + '"/></circle>').join('') : '';
+      return '<path class="pipe base" d="' + d + '"/>' +
+        (flowing ? '<path class="pipe" d="' + d + '" style="stroke:' + col + ';opacity:.45"/>' + dots : '') +
+        lines.map((t, i) => '<text class="pipe-label" x="' + lx + '" y="' + (my + i*16) + '" text-anchor="' + (left ? 'start' : 'end') + '">' + t + '</text>').join('');
+    };
+    let h = '';
+    // battery pipe flows into the hub when charging, out when discharging
+    const battRev = NOW && NOW.batt === 'charging';
+    const kwL = v => v.toFixed(1) + ' kW now';
+    h += pipe(N.solar, T.pv, 'var(--solar)', NOW ? [kwL(NOW.pvKw)] : [kwh(F.fromSolar) + ' → house', kwh(T.chg) + ' → battery'], false, nowKw.solar);
+    h += pipe(N.grid, T.buy, 'var(--grid)', NOW ? [NOW.gridIn ? kwL(NOW.gridKw) : 'idle'] : [kwh(F.fromGrid) + ' → house'], false, nowKw.grid);
+    h += pipe(N.batt, NOW ? NOW.battKw : T.dis, 'var(--battery)',
+      NOW && NOW.batt !== 'idle' ? [(NOW.batt === 'charging' ? 'charging ' : 'supplying ') + NOW.battKw.toFixed(1) + ' kW'] : [kwh(F.fromBatt) + ' → house'],
+      battRev, NOW ? NOW.battKw : null);
+    h += pipe(N.house, T.load, 'var(--text-3)', NOW ? [kwL(NOW.loadKw)] : [], true, nowKw.house);
+    // inverter hub
+    const self = T.load ? (T.load - T.buy) / T.load : 0;
+    const R = 34, circ = 2 * Math.PI * R;
+    h += '<circle cx="' + C.x + '" cy="' + C.y + '" r="' + (R+10) + '" fill="var(--surface)" stroke="var(--line)"/>' +
+         '<circle cx="' + C.x + '" cy="' + C.y + '" r="' + R + '" fill="none" stroke="var(--surface-2)" stroke-width="6"/>' +
+         '<circle cx="' + C.x + '" cy="' + C.y + '" r="' + R + '" fill="none" stroke="var(--solar)" stroke-width="6" stroke-linecap="round" stroke-dasharray="' + (circ*self) + ' ' + circ + '" transform="rotate(-90 ' + C.x + ' ' + C.y + ')"/>' +
+         '<text x="' + C.x + '" y="' + (C.y+4) + '" text-anchor="middle" class="node-val" style="font-size:19px">' + pct(self) + '</text>' +
+         '<text x="' + C.x + '" y="' + (C.y+20) + '" text-anchor="middle" class="node-sub" style="font-size:9.5px;letter-spacing:.08em">SELF-POWERED</text>';
+    // battery level for the icon: live SOC, else the last reading of the selected day(s)
+    let socNow = NOW ? NOW.soc : null;
+    if (socNow == null && DATA) {
+      const sel = SEL === 'all' ? DATA.days : DATA.days.filter(d => d.key === SEL);
+      for (let i = sel.length - 1; i >= 0 && socNow == null; i--)
+        for (let j = sel[i].rows.length - 1; j >= 0; j--) { const s = sel[i].rows[j].soc; if (isFinite(s) && s > 0) { socNow = s; break; } }
+    }
+    const pvNow = NOW ? NOW.pvKw : (T.pv > 0.05 ? 3 : 0);
+    if (socNow != null) {
+      const st = NOW && NOW.batt !== 'idle' ? (NOW.batt === 'charging' ? ' ▲' : ' ▼') : '';
+      N.batt.val = Math.round(socNow) + '%' + st;
+      N.batt.label = NOW ? 'Battery · ' + NOW.batt : 'Battery · last';
+      N.batt.sub = kwh(T.chg) + ' in · ' + kwh(T.dis) + ' out kWh';
+    }
+    for (const [k, v] of Object.entries(N)) {
+      let ic = icon[k];
+      if (k === 'solar') ic = svgSun(pvNow, 1);
+      if (k === 'batt' && socNow != null) ic = svgBattV(socNow, NOW ? NOW.batt : 'idle');
+      h += '<circle cx="' + v.x + '" cy="' + v.y + '" r="24" fill="var(--surface-2)" stroke="var(--line)"/>' +
+           '<g transform="translate(' + v.x + ' ' + v.y + ')" style="color:' + v.col + '">' + ic + '</g>';
+      const tx = v.x < C.x ? v.x + 38 : v.x - 38, anchor = v.x < C.x ? 'start' : 'end';
+      h += '<text x="' + tx + '" y="' + (v.y - 6) + '" text-anchor="' + anchor + '" class="node-label">' + v.label + '</text>' +
+           '<text x="' + tx + '" y="' + (v.y + 17) + '" text-anchor="' + anchor + '" class="node-val">' + v.val + '</text>' +
+           '<text x="' + tx + '" y="' + (v.y + 33) + '" text-anchor="' + anchor + '" class="node-sub">' + v.sub + '</text>';
+    }
+    svg.innerHTML = h;
+  }
+
+  /* ---------- projection ---------- */
+  function projection(days){
+    let base = days.filter(d => d.complete), note = '';
+    if (!base.length) { base = days; note = ' (rough: no complete day loaded yet)'; }
+    const T = sumTot(base), n = base.length;
+    const perDay = {load:T.load/n, buy:T.buy/n, sell:T.sell/n};
+    const bill = perDay.buy * 30 * S.rate + S.fixed - perDay.sell * 30 * S.feed;
+    const withoutBill = perDay.load * 30 * S.rate + S.fixed;
+    const save = withoutBill - bill;
+    document.getElementById('projBill').textContent = rand(bill);
+    document.getElementById('projHint').textContent = 'Average of ' + n + ' day' + (n>1?'s':'') + ' × 30' + (S.fixed ? ', incl. ' + rand(S.fixed) + ' fixed charges' : ', excl. fixed charges') + note + '.';
+    document.getElementById('projSave').textContent = rand(save);
+    document.getElementById('projWithout').textContent = rand(withoutBill);
+    if (S.cost > 0 && save > 0) {
+      const yrs = S.cost / (save * 12);
+      document.getElementById('projPayback').textContent = yrs < 1 ? Math.round(yrs*12) + ' mo' : yrs.toFixed(1) + ' yrs';
+      document.getElementById('projPaybackL').textContent = 'payback on ' + rand(S.cost);
+    } else {
+      document.getElementById('projPayback').textContent = '-';
+      document.getElementById('projPaybackL').textContent = 'payback (add system cost)';
+    }
+  }
+
+  /* ---------- insights ---------- */
+  function batteryEvents(D){
+    const res = S.reserve || 25;
+    let emptyAt = null, fullAt = null, minSoc = 101;
+    for (const r of D.rows) {
+      if (!isFinite(r.soc) || r.soc <= 0) continue;
+      minSoc = Math.min(minSoc, r.soc);
+      if (!fullAt && r.soc >= 99 && r.t.getHours() >= 6) fullAt = r.t;
+      if (!emptyAt && r.soc <= res && r.t.getHours() >= 12) emptyAt = r.t;
+    }
+    return {emptyAt, fullAt, minSoc: minSoc > 100 ? null : minSoc};
+  }
+  function insights(sel){
+    const ul = document.getElementById('insights'); const items = [];
+    const add = (col, sym, html) => items.push('<li><span class="ic" style="background:' + col + '">' + sym + '</span><span>' + html + '</span></li>');
+    // hourly aggregate
+    const H = Array.from({length:24}, (_, i) => ({i, grid:0, solar:0, batt:0}));
+    sel.forEach(d => d.hourly.forEach((h, i) => { H[i].grid += h.grid; H[i].solar += h.solar; H[i].batt += h.batt; }));
+    const nightGrid = H.filter(h => h.i >= 18 || h.i < 6).reduce((s,h) => s + h.grid, 0);
+    const dayGrid = H.filter(h => h.i >= 6 && h.i < 18).reduce((s,h) => s + h.grid, 0);
+    const topGrid = [...H].sort((a,b) => b.grid - a.grid)[0];
+    if (topGrid && topGrid.grid > 0.3) add('var(--grid)', '⚡', 'Most grid power was used between <b>' + String(topGrid.i).padStart(2,'0') + ':00 and ' + String((topGrid.i+1)%24).padStart(2,'0') + ':00</b>: ' + kwh(topGrid.grid) + ' kWh (' + rand(topGrid.grid * S.rate) + ').');
+    if (nightGrid + dayGrid > 0.3) add('var(--grid)', '☾', '<b>' + kwh(nightGrid) + ' kWh</b> of grid use was at night (18:00–06:00) and <b>' + kwh(dayGrid) + ' kWh</b> in the day.');
+    // battery
+    sel.forEach(d => {
+      const ev = batteryEvents(d);
+      if (ev.emptyAt) add('var(--battery)', '▼', (sel.length > 1 ? niceDay(d.key) + ': ' : '') + 'battery reached the ' + S.reserve + '% reserve at <b>' + hm(ev.emptyAt) + '</b>, then the grid took over.');
+    });
+    // grid while battery high (daytime waste)
+    let waste = 0;
+    sel.forEach(d => d.rows.forEach((r, i) => {
+      const nx = d.rows[i+1]; if (!nx) return;
+      const dt = Math.min((nx.t - r.t)/3.6e6, 0.25);
+      if (r.soc >= 90 && r.grid > 300) waste += r.grid * dt / 1000;
+    }));
+    if (waste > 0.5) add('#d03b3b', '!', '<b>' + kwh(waste) + ' kWh</b> came from the grid while the battery was above 90% (' + rand(waste * S.rate) + '). Worth checking the battery settings.');
+    // peak load
+    let pk = {v:0, t:null};
+    sel.forEach(d => d.rows.forEach(r => { if (r.load > pk.v) pk = {v:r.load, t:r.t}; }));
+    if (pk.t) add('var(--text-3)', '↑', 'Highest house load was <b>' + (pk.v/1000).toFixed(1) + ' kW</b> at ' + hm(pk.t) + (sel.length > 1 ? ' on ' + niceDay(dayKey(pk.t)) : '') + (pk.v > 7500 ? ', more than the battery can supply on its own (~7.5 kW).' : '.'));
+    if (!items.length) add('var(--text-3)', 'i', 'Load a full day to see patterns.');
+    ul.innerHTML = items.slice(0, 6).join('');
+  }
+
+  /* ---------- charts ---------- */
+  function baseOpts(){
+    const tc = css('--text-2'), gc = css('--grid-line');
+    Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+    Chart.defaults.font.size = 11.5;
+    Chart.defaults.color = tc;
+    return {
+      responsive:true, maintainAspectRatio:false, animation:{duration:400},
+      interaction:{mode:'index', intersect:false},
+      plugins:{legend:{display:false},
+        tooltip:{backgroundColor:css('--surface'), titleColor:css('--text'), bodyColor:css('--text-2'), footerColor:css('--text'),
+          borderColor:css('--line'), borderWidth:1, padding:10, cornerRadius:10, boxPadding:4, usePointStyle:true}},
+      scales:{
+        x:{grid:{display:false}, border:{color:css('--line')}, ticks:{color:css('--text-3'), maxRotation:0, autoSkipPadding:12}},
+        y:{grid:{color:gc}, border:{display:false}, ticks:{color:css('--text-3'), maxTicksLimit:5}, beginAtZero:true}
+      }
+    };
+  }
+  function put(id, cfg){ if (charts[id]) charts[id].destroy(); charts[id] = new Chart(document.getElementById(id), cfg); }
+  const stackDs = (label, data, color, top) => ({
+    label, data, backgroundColor:color, borderColor:css('--surface'),
+    borderWidth: top === 'bottom' ? 0 : {top:2, bottom:0, left:0, right:0},
+    borderRadius: top === 'top' ? {topLeft:4, topRight:4} : 0, borderSkipped:false,
+    barPercentage:.78, categoryPercentage:.9,
+  });
+
+  function hourChart(sel){
+    const n = sel.length;
+    const H = Array.from({length:24}, () => ({solar:0, batt:0, grid:0}));
+    sel.forEach(d => d.hourly.forEach((h, i) => { H[i].solar += h.solar/n; H[i].batt += h.batt/n; H[i].grid += h.grid/n; }));
+    document.getElementById('hourTitle').textContent = n > 1 ? 'An average day: where the house got its power' : 'Where the house got its power';
+    document.getElementById('hourHint').textContent = (n > 1 ? 'Average kWh per hour across ' + n + ' days.' : 'kWh per hour.') + ' Hover a bar for the split.';
+    const o = baseOpts();
+    o.scales.x.stacked = true; o.scales.y.stacked = true;
+    o.scales.y.title = {display:true, text:'kWh', color:css('--text-3')};
+    o.plugins.tooltip.callbacks = {
+      title: it => it[0].label + '–' + String((+it[0].label.slice(0,2)+1)%24).padStart(2,'0') + ':00',
+      label: c => ' ' + c.dataset.label + ': ' + c.parsed.y.toFixed(2) + ' kWh',
+      footer: it => 'Total ' + it.reduce((s,c) => s + c.parsed.y, 0).toFixed(2) + ' kWh · grid ' + rand((it.find(c => c.dataset.label==='Grid')?.parsed.y || 0) * S.rate)
+    };
+    put('hourChart', {type:'bar', data:{
+      labels: H.map((_, i) => String(i).padStart(2,'0') + ':00'),
+      datasets:[
+        stackDs('Solar', H.map(h => +h.solar.toFixed(3)), css('--solar'), 'bottom'),
+        stackDs('Battery', H.map(h => +h.batt.toFixed(3)), css('--battery'), 'mid'),
+        stackDs('Grid', H.map(h => +h.grid.toFixed(3)), css('--grid'), 'top'),
+      ]}, options:o});
+  }
+
+  function sunChart(sel){
+    // average PV power per 10-minute slot
+    const SL = 144, sum = new Array(SL).fill(0), cnt = new Array(SL).fill(0);
+    sel.forEach(d => d.rows.forEach(r => { const s = Math.floor((r.t.getHours()*60 + r.t.getMinutes())/10); sum[s] += r.pv || 0; cnt[s]++; }));
+    const avg = sum.map((s, i) => cnt[i] ? s / cnt[i] / 1000 : null);
+    let pk = 0, pki = -1; avg.forEach((v, i) => { if (v != null && v > pk) { pk = v; pki = i; } });
+    const lab = i => String(Math.floor(i/6)).padStart(2,'0') + ':' + String((i%6)*10).padStart(2,'0');
+    let w0 = -1, w1 = -1;
+    if (pk > 0) avg.forEach((v, i) => { if (v != null && v >= pk*0.5) { if (w0 < 0) w0 = i; w1 = i; } });
+    document.getElementById('sunPeak').textContent = pk ? pk.toFixed(1) + ' kW' : '-';
+    document.getElementById('sunPeakAt').textContent = pki >= 0 ? lab(pki) : '-';
+    document.getElementById('sunWindow').textContent = w0 >= 0 ? lab(w0) + '–' + lab(w1+1) : '-';
+    document.getElementById('sunHint').textContent = (sel.length > 1 ? 'Average solar output across ' + sel.length + ' days. ' : 'Solar output through the day. ') +
+      'With export off, panels are turned down once the house and battery are covered, so this is solar used, not the panels\' full potential.';
+    const o = baseOpts();
+    o.scales.y.title = {display:true, text:'kW', color:css('--text-3')};
+    o.scales.x.ticks.callback = function(v){ const step = this.chart.width < 500 ? 36 : 18; return v % step === 0 ? this.getLabelForValue(v) : ''; };
+    o.scales.x.ticks.autoSkip = false;
+    o.plugins.tooltip.filter = c => c.datasetIndex === 0;
+    o.plugins.tooltip.callbacks = {label: c => ' Solar: ' + (c.parsed.y ?? 0).toFixed(2) + ' kW'};
+    const solar = css('--solar');
+    put('sunChart', {type:'line', data:{labels: avg.map((_, i) => lab(i)), datasets:[
+      {label:'Solar', data:avg, borderColor:solar, backgroundColor:solar + '33', fill:true, tension:.35, pointRadius:0, pointHoverRadius:5, pointHoverBorderColor:css('--surface'), pointHoverBorderWidth:2, borderWidth:2, spanGaps:true},
+      {label:'Peak', data:avg.map((v, i) => i === pki ? v : null), pointRadius:5, pointBackgroundColor:solar, pointBorderColor:css('--surface'), pointBorderWidth:2, showLine:false},
+    ]}, options:o});
+  }
+
+  function socChart(sel){
+    const pts = []; sel.forEach(d => d.rows.forEach(r => { if (isFinite(r.soc) && r.soc > 0) pts.push({x:r.t, y:r.soc}); }));
+    const multi = sel.length > 1;
+    if (!multi) {
+      const ev = batteryEvents(sel[0]);
+      document.getElementById('socMin').textContent = ev.minSoc != null ? ev.minSoc + '%' : '-';
+      document.getElementById('socEmpty').textContent = ev.emptyAt ? hm(ev.emptyAt) : 'didn\'t';
+      document.getElementById('socFull').textContent = ev.fullAt ? hm(ev.fullAt) : 'not full';
+    } else {
+      const evs = sel.map(batteryEvents);
+      const mins = evs.map(e => e.minSoc).filter(v => v != null);
+      document.getElementById('socMin').textContent = mins.length ? Math.min(...mins) + '%' : '-';
+      const avgT = arr => { const m = arr.filter(Boolean).map(t => t.getHours()*60 + t.getMinutes()); if (!m.length) return '-'; const a = Math.round(m.reduce((s,v)=>s+v,0)/m.length); return String(Math.floor(a/60)).padStart(2,'0') + ':' + String(a%60).padStart(2,'0'); };
+      document.getElementById('socEmpty').textContent = avgT(evs.map(e => e.emptyAt));
+      document.getElementById('socFull').textContent = avgT(evs.map(e => e.fullAt));
+    }
+    document.getElementById('socEmptyL').textContent = (multi ? 'avg. ' : '') + 'hit ' + S.reserve + '% at';
+    document.getElementById('socHint').textContent = 'Battery state of charge' + (multi ? ' across ' + sel.length + ' days.' : ' through the day.');
+    const o = baseOpts();
+    o.scales.x = {type:'linear', grid:{display:false}, border:{color:css('--line')},
+      min: pts.length ? +pts[0].x : undefined, max: pts.length ? +pts[pts.length-1].x : undefined,
+      ticks:{color:css('--text-3'), maxTicksLimit: multi ? 7 : 7, callback: v => { const d = new Date(v); return multi && d.getHours() === 0 ? niceDay(dayKey(d)) : hm(d); }}};
+    o.scales.y.min = 0; o.scales.y.max = 100;
+    o.scales.y.ticks.callback = v => v + '%';
+    o.plugins.tooltip.callbacks = {title: it => { const d = new Date(it[0].parsed.x); return (multi ? niceDay(dayKey(d)) + ' ' : '') + hm(d); }, label: c => ' Battery: ' + c.parsed.y + '%'};
+    const bc = css('--battery');
+    put('socChart', {type:'line', data:{datasets:[
+      {label:'Battery', data:pts.map(p => ({x:+p.x, y:p.y})), borderColor:bc, backgroundColor:bc + '26', fill:true, tension:.25, pointRadius:0, pointHoverRadius:5, pointHoverBorderColor:css('--surface'), pointHoverBorderWidth:2, borderWidth:2},
+      {label:'Reserve', data: pts.length ? [{x:+pts[0].x, y:S.reserve}, {x:+pts[pts.length-1].x, y:S.reserve}] : [], borderColor:css('--text-3'), borderDash:[4,4], borderWidth:1, pointRadius:0, fill:false},
+    ]}, options:{...o, interaction:{mode:'nearest', axis:'x', intersect:false}, plugins:{...o.plugins, tooltip:{...o.plugins.tooltip, filter:c => c.datasetIndex === 0}}}});
+  }
+
+  function dayChart(days){
+    const card = document.getElementById('dailyCard');
+    if (days.length < 2) { card.classList.add('hidden'); return; }
+    card.classList.remove('hidden');
+    const F = days.map(d => flows(d.tot));
+    const o = baseOpts();
+    o.scales.x.stacked = true; o.scales.y.stacked = true;
+    o.scales.y.title = {display:true, text:'kWh', color:css('--text-3')};
+    o.plugins.tooltip.callbacks = {
+      label: c => ' ' + c.dataset.label + ': ' + c.parsed.y.toFixed(1) + ' kWh',
+      footer: it => { const d = days[it[0].dataIndex]; return 'House ' + kwh(d.tot.load) + ' kWh · grid cost ' + rand(d.tot.buy * S.rate) + (d.complete ? '' : ' (partial day)'); }
+    };
+    put('dayChart', {type:'bar', data:{labels: days.map(d => niceDay(d.key) + (d.complete ? '' : ' *')), datasets:[
+      stackDs('Solar', F.map(f => +f.fromSolar.toFixed(2)), css('--solar'), 'bottom'),
+      stackDs('Battery', F.map(f => +f.fromBatt.toFixed(2)), css('--battery'), 'mid'),
+      stackDs('Grid', F.map(f => +f.fromGrid.toFixed(2)), css('--grid'), 'top'),
+    ]}, options:o});
+  }
+
+  function table(days){
+    const head = '<tr><th>Day</th><th>Solar</th><th>House</th><th>Grid</th><th>Batt in</th><th>Batt out</th><th>Self-powered</th><th>Grid cost</th><th>Saved</th></tr>';
+    const rows = days.map(d => {
+      const t = d.tot, s = t.load ? (t.load - t.buy)/t.load : 0;
+      return '<tr><td' + (d.complete ? '' : ' class="partial"') + '>' + niceDay(d.key) + (d.complete ? '' : (d.last ? ' (to ' + hm(d.last) + ')' : ' (so far)')) + '</td>' +
+        '<td>' + kwh(t.pv) + '</td><td>' + kwh(t.load) + '</td><td>' + kwh(t.buy) + '</td><td>' + kwh(t.chg) + '</td><td>' + kwh(t.dis) + '</td>' +
+        '<td>' + pct(s) + '</td><td>' + rand(t.buy*S.rate) + '</td><td>' + rand((t.load-t.buy)*S.rate + t.sell*S.feed) + '</td></tr>';
+    });
+    if (days.length > 1) {
+      const T = sumTot(days), s = T.load ? (T.load - T.buy)/T.load : 0;
+      rows.push('<tr><td><b>Total</b></td><td><b>' + kwh(T.pv) + '</b></td><td><b>' + kwh(T.load) + '</b></td><td><b>' + kwh(T.buy) + '</b></td><td><b>' + kwh(T.chg) + '</b></td><td><b>' + kwh(T.dis) + '</b></td><td><b>' + pct(s) + '</b></td><td><b>' + rand(T.buy*S.rate) + '</b></td><td><b>' + rand((T.load-T.buy)*S.rate + T.sell*S.feed) + '</b></td></tr>');
+    }
+    document.getElementById('tbl').innerHTML = '<thead>' + head + '</thead><tbody>' + rows.join('') + '</tbody>';
+  }
+
+  /* ---------- live Sunsynk API (unofficial) ---------- */
+  const API = 'https://api.sunsynk.net';
+  const LIVE = {token:null, plantId:null, plants:[], flow:null, flowAt:null, timer:null, tick:0, debug:{}};
+  const md5 = s => CryptoJS.MD5(s).toString();
+  const tokenStore = () => { try { return localStorage.getItem('solar.remember') === '1' ? localStorage : sessionStorage; } catch(e){ return null; } };
+
+  async function api(path, opts = {}){
+    const headers = {'Content-Type':'application/json'};
+    if (LIVE.token) headers.Authorization = 'Bearer ' + LIVE.token;
+    const r = await fetch(API + path, {...opts, headers});
+    if (r.status === 401) { liveLogout('Your Sunsynk session expired. Connect again.'); throw new Error('Session expired'); }
+    const j = await r.json().catch(() => ({}));
+    LIVE.debug[path.split('?')[0].replace(/\d{4,}/g, '{id}')] = j;
+    if (j.code !== 0 && j.success !== true) throw new Error(j.msg || ('Sunsynk returned HTTP ' + r.status));
+    return j.data;
+  }
+
+  async function liveLogin(user, pass){
+    const n1 = Date.now();
+    const key = await api('/anonymous/publicKey?source=sunsynk&nonce=' + n1 + '&sign=' + md5('nonce=' + n1 + '&source=sunsynkPOWER_VIEW'));
+    if (!key || typeof key !== 'string') throw new Error('Could not get the login key from Sunsynk.');
+    const enc = new JSEncrypt();
+    enc.setPublicKey('-----BEGIN PUBLIC KEY-----\n' + key + '\n-----END PUBLIC KEY-----');
+    const encPass = enc.encrypt(pass);
+    if (!encPass) throw new Error('Could not encrypt the password.');
+    const n2 = Date.now();
+    const d = await api('/oauth/token/new', {method:'POST', body: JSON.stringify({
+      client_id:'csp-web', grant_type:'password', username:user, password:encPass, source:'sunsynk',
+      nonce:n2, sign: md5('nonce=' + n2 + '&source=sunsynk' + key.slice(0, 10))
+    })});
+    if (!d || !d.access_token) throw new Error('Sunsynk didn\'t accept the login.');
+    return d;
+  }
+
+  const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+  const labelKey = l => {
+    l = String(l || '').toLowerCase();
+    if (/soc/.test(l)) return 'soc';
+    if (/pv|solar|production/.test(l)) return 'pv';
+    if (/batt/.test(l)) return 'batt';
+    if (/load|consum/.test(l)) return 'load';
+    if (/grid|meter/.test(l)) return 'grid';
+    return null;
+  };
+
+  // one day of 5-minute power readings -> rows
+  async function liveDay(k){
+    const d = await api('/api/v1/plant/energy/' + LIVE.plantId + '/day?lan=en&date=' + k + '&id=' + LIVE.plantId);
+    const infos = (d && d.infos) || [];
+    const byTime = new Map();
+    infos.forEach(s => {
+      const f = labelKey(s.label); if (!f) return;
+      const mult = /kw/i.test(s.unit || '') && f !== 'soc' ? 1000 : 1;
+      (s.records || []).forEach(rec => {
+        const tm = String(rec.time || '');
+        const t = toDate(/\d{4}-\d{2}-\d{2}/.test(tm) ? tm : k + ' ' + tm.slice(0, 5));
+        if (!t) return;
+        const key = t.getTime();
+        if (!byTime.has(key)) byTime.set(key, {t, pv:0, load:0, grid:0, batt:0, soc:NaN,
+          dayPV:NaN, dayLoad:NaN, dayBuy:NaN, daySell:NaN, dayChg:NaN, dayDis:NaN});
+        byTime.get(key)[f] = num(rec.value) * mult;
+      });
+    });
+    const rows = [...byTime.values()].sort((a,b) => a.t - b.t);
+    // sign checks: battery should be positive when discharging, grid positive when importing
+    let bSum = 0, bN = 0, gSum = 0, gN = 0;
+    rows.forEach((r, i) => {
+      const nx = rows[i+1];
+      if (nx && isFinite(r.soc) && isFinite(nx.soc) && nx.soc < r.soc && r.pv < 50) { bSum += r.batt; bN++; }
+      if (r.pv < 50 && Math.abs(r.batt) < 100 && r.load > 300) { gSum += r.grid; gN++; }
+    });
+    const flipB = bN > 2 && bSum / bN < 0, flipG = gN > 2 && gSum / gN < 0;
+    rows.forEach(r => {
+      if (flipB) r.batt = -r.batt;
+      if (flipG) r.grid = -r.grid;
+      r.load = Math.abs(r.load);
+      RAW.set(r.t.getTime(), r);
+    });
+    return rows.length;
+  }
+
+  // daily kWh totals for a month
+  async function liveMonth(ym){
+    const d = await api('/api/v1/plant/energy/' + LIVE.plantId + '/month?lan=en&date=' + ym + '&id=' + LIVE.plantId);
+    (d && d.infos || []).forEach(s => {
+      const l = String(s.label || '').toLowerCase();
+      const f = /discharg/.test(l) ? 'dis' : /charg/.test(l) ? 'chg' : /export|sell/.test(l) ? 'sell'
+              : /import|buy|purchas/.test(l) ? 'buy' : /pv|solar|production/.test(l) ? 'pv' : /load|consum/.test(l) ? 'load' : null;
+      if (!f) return;
+      (s.records || []).forEach(rec => {
+        let tm = String(rec.time || '');
+        if (/^\d{1,2}$/.test(tm)) tm = ym + '-' + tm.padStart(2, '0');
+        const k = tm.slice(0, 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(k)) return;
+        const cur = DAYTOT.get(k) || {pv:0, load:0, buy:0, sell:0, chg:0, dis:0};
+        cur[f] = num(rec.value); DAYTOT.set(k, cur);
+      });
+    });
+  }
+
+  async function liveFlow(){
+    const f = await api('/api/v1/plant/energy/' + LIVE.plantId + '/flow?date=' + dayKey(new Date()));
+    LIVE.flow = f; LIVE.flowAt = new Date();
+    renderLive();
+  }
+
+  function renderLive(){
+    const el = document.getElementById('live');
+    if (!LIVE.token || !LIVE.flow) { el.classList.add('hidden'); return; }
+    const f = LIVE.flow, kw = w => (Math.abs(num(w))/1000).toFixed(2) + ' kW';
+    const battState = battDir(f);
+    const gridState = gridDir(f);
+    el.innerHTML =
+      '<div class="tile"><div class="eyebrow"><span class="dot" style="background:var(--solar)"></span>Solar now</div><div class="v">' + kw(f.pvPower) + '</div><div class="s">' + (num(f.pvPower) > 50 ? 'producing' : 'no sun') + '</div>' +
+        '<svg class="ico" width="48" height="48" viewBox="-24 -24 48 48" aria-hidden="true">' + svgSun(num(f.pvPower)/1000, 1.15) + '</svg></div>' +
+      '<div class="tile"><div class="eyebrow"><span class="dot" style="background:var(--battery)"></span>Battery</div><div class="v">' + Math.round(num(f.soc)) + '%</div><div class="s">' + battState + (battState !== 'idle' ? ' · ' + kw(f.battPower) : '') + '</div>' +
+        '<span class="ico">' + svgBattH(num(f.soc), battState) + '</span></div>' +
+      '<div class="tile"><div class="eyebrow"><span class="dot" style="background:var(--grid)"></span>Grid now</div><div class="v">' + kw(f.gridOrMeterPower) + '</div><div class="s">' + gridState + '</div></div>' +
+      '<div class="tile"><div class="eyebrow">House now</div><div class="v">' + kw(f.loadOrEpsPower) + '</div><div class="s">using</div></div>' +
+      '<div class="meta"><span><span class="pulse"></span>Live</span><span>Updated ' + hm(LIVE.flowAt) + '</span></div>';
+    el.classList.remove('hidden');
+  }
+
+  async function liveLoadAll(){
+    const now = new Date(), ym = k => k.slice(0, 7);
+    const today = dayKey(now), yest = dayKey(new Date(now - 864e5));
+    await liveMonth(ym(today));
+    if (ym(yest) !== ym(today) || now.getDate() <= 7) {
+      const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      await liveMonth(dayKey(prev).slice(0, 7)).catch(() => {});
+    }
+    await liveDay(today);
+    await liveDay(yest).catch(() => {});
+    await liveFlow().catch(() => {});
+    derive();
+  }
+
+  async function liveStart(){
+    const plants = await api('/api/v1/plants?page=1&limit=20&name=&status=');
+    LIVE.plants = (plants && plants.infos) || [];
+    if (!LIVE.plants.length) throw new Error('No plants found on this Sunsynk account.');
+    const saved = (tokenStore()?.getItem('solar.plant')) || '';
+    LIVE.plantId = (LIVE.plants.find(p => String(p.id) === saved) || LIVE.plants[0]).id;
+    const sel = document.getElementById('conPlant');
+    sel.innerHTML = LIVE.plants.map(p => '<option value="' + p.id + '">' + String(p.name || p.id).replace(/[<>&]/g, '') + '</option>').join('');
+    sel.value = String(LIVE.plantId);
+    PLANT = (LIVE.plants.find(p => p.id == LIVE.plantId) || {}).name || PLANT;
+    document.getElementById('conLogin').classList.add('hidden');
+    document.getElementById('conDone').classList.remove('hidden');
+    const btn = document.getElementById('liveBtn'); btn.innerHTML = '<span class="pulse"></span>Live';
+    await liveLoadAll();
+    SEL = dayKey(new Date());
+    render();
+    clearInterval(LIVE.timer);
+    LIVE.timer = setInterval(async () => {
+      if (document.hidden || !LIVE.token) return;
+      LIVE.tick++;
+      try {
+        await liveFlow();
+        if (LIVE.tick % 2 !== 0 && DATA) render();
+        if (LIVE.tick % 2 === 0) { await liveMonth(dayKey(new Date()).slice(0, 7)); await liveDay(dayKey(new Date())); derive(); render(); }
+      } catch(e){}
+    }, 5 * 60 * 1000);
+  }
+
+  function liveLogout(msg){
+    LIVE.token = null; LIVE.flow = null; clearInterval(LIVE.timer);
+    const st = tokenStore(); try { st?.removeItem('solar.token'); localStorage.removeItem('solar.token'); sessionStorage.removeItem('solar.token'); } catch(e){}
+    document.getElementById('conLogin').classList.remove('hidden');
+    document.getElementById('conDone').classList.add('hidden');
+    document.getElementById('liveBtn').textContent = 'Connect Sunsynk';
+    document.getElementById('conErr').textContent = msg || '';
+    renderLive();
+  }
+
+  const conEl = document.getElementById('connect');
+  const openCon = () => { conEl.classList.add('open'); (LIVE.token ? document.getElementById('conPlant') : document.getElementById('conUser')).focus(); };
+  document.getElementById('liveBtn').onclick = openCon;
+  document.getElementById('liveBtn2').onclick = openCon;
+  document.getElementById('conClose').onclick = () => conEl.classList.remove('open');
+  conEl.addEventListener('click', e => { if (e.target === conEl) conEl.classList.remove('open'); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') conEl.classList.remove('open'); });
+  try { document.getElementById('conUser').value = localStorage.getItem('solar.user') || ''; document.getElementById('conRemember').checked = localStorage.getItem('solar.remember') === '1'; } catch(e){}
+
+  document.getElementById('conForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const err = document.getElementById('conErr'), go = document.getElementById('conGo');
+    const user = document.getElementById('conUser').value.trim(), pass = document.getElementById('conPass').value;
+    const remember = document.getElementById('conRemember').checked;
+    err.textContent = ''; go.disabled = true; go.textContent = 'Connecting…';
+    try {
+      try { localStorage.setItem('solar.remember', remember ? '1' : '0'); localStorage.setItem('solar.user', user); } catch(e){}
+      const d = await liveLogin(user, pass);
+      LIVE.token = d.access_token;
+      document.getElementById('conPass').value = '';
+      try { tokenStore()?.setItem('solar.token', JSON.stringify({t:d.access_token, exp: Date.now() + (num(d.expires_in) || 3600*24) * 1000})); } catch(e){}
+      await liveStart();
+      conEl.classList.remove('open');
+    } catch (ex) {
+      err.textContent = ex.message || 'Could not connect.';
+    } finally { go.disabled = false; go.textContent = 'Connect'; }
+  });
+  document.getElementById('conPlant').addEventListener('change', async e => {
+    LIVE.plantId = e.target.value; try { tokenStore()?.setItem('solar.plant', LIVE.plantId); } catch(e){}
+    RAW = new Map(); DAYTOT = new Map();
+    PLANT = (LIVE.plants.find(p => p.id == LIVE.plantId) || {}).name || '';
+    try { await liveLoadAll(); render(); } catch(ex){ document.getElementById('conErr').textContent = ex.message; }
+  });
+  document.getElementById('conRefresh').onclick = async () => {
+    const err = document.getElementById('conErr'); err.textContent = '';
+    try { await liveLoadAll(); render(); } catch(ex){ err.textContent = ex.message; }
+  };
+  document.getElementById('conOut').onclick = () => liveLogout('Disconnected.');
+  document.getElementById('conDebug').onclick = async () => {
+    const txt = JSON.stringify(LIVE.debug, (k, v) => /token|password/i.test(k) ? '[hidden]' : v, 2).slice(0, 20000);
+    try { await navigator.clipboard.writeText(txt); document.getElementById('conErr').textContent = 'Debug info copied. Paste it to whoever is helping you.'; }
+    catch(e){ document.getElementById('conErr').textContent = 'Couldn\'t copy automatically.'; }
+  };
+
+  // resume a saved session
+  (async () => {
+    try {
+      const raw = tokenStore()?.getItem('solar.token'); if (!raw) return;
+      const s = JSON.parse(raw); if (!s.t || s.exp < Date.now()) return;
+      LIVE.token = s.t; await liveStart();
+    } catch(e){ if (LIVE.token) liveLogout(); }
+  })();
+
+  /* ---------- file input & drag-drop ---------- */
+  document.getElementById('file').addEventListener('change', e => { addFiles([...e.target.files]); e.target.value = ''; });
+  const drop = document.getElementById('empty');
+  ['dragenter','dragover'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave','drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); if (ev === 'drop' || e.target === drop) drop.classList.remove('over'); }));
+  document.addEventListener('drop', e => { const f = [...(e.dataTransfer?.files || [])]; if (f.length) addFiles(f); });
+  document.getElementById('clearBtn').onclick = () => {
+    if (LIVE.token) liveLogout();
+    RAW = new Map(); DAYTOT = new Map(); DATA = null; PLANT = ''; SEL = 'all';
+    Object.values(charts).forEach(c => c.destroy());
+    document.getElementById('dash').classList.add('hidden');
+    document.getElementById('empty').classList.remove('hidden');
+    document.getElementById('clearBtn').classList.add('hidden');
+    document.getElementById('subtitle').textContent = 'Sunsynk Connect report viewer';
+  };
+})();
+</script>
+</body>
+</html>
