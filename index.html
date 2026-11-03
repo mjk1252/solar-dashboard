@@ -269,6 +269,27 @@ td.partial{color:var(--text-3)}
 .livebar .tile .ico{position:absolute;right:12px;top:50%;transform:translateY(-50%);opacity:.95}
 @media (max-width: 520px){.livebar .tile .ico{top:auto;bottom:6px;right:8px;transform:scale(.62);transform-origin:bottom right}}
 
+/* appliance timing report */
+.timing-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.timing-tips{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:4px}
+.tip{background:var(--surface-2);border-radius:14px;padding:12px 14px;font-size:13.5px;color:var(--text-2)}
+.tip b{display:block;color:var(--text);font-weight:500;font-size:14px;margin-bottom:3px}
+.tip .t{font-size:18px;font-weight:300;color:var(--text);margin:2px 0 4px;font-variant-numeric:tabular-nums}
+.hatch{background:repeating-linear-gradient(135deg,var(--solar) 0 3px,transparent 3px 6px) !important;border:1px solid var(--solar)}
+.timeline{display:grid;gap:6px;font-size:12px;color:var(--text-3)}
+.tl-row{display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:center}
+.tl-track{position:relative;height:18px;border-radius:6px;background:var(--surface-2);overflow:hidden}
+.tl-seg{position:absolute;top:0;bottom:0}
+.tl-seg.chg{background:var(--battery);opacity:.35}
+.tl-seg.tfull{background:var(--battery)}
+.tl-seg.spare{top:3px;bottom:3px;background:repeating-linear-gradient(135deg,var(--solar) 0 3px,transparent 3px 6px);border:1px solid var(--solar);border-radius:4px}
+.tl-seg.res{background:var(--grid)}
+.tl-mark{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--text);opacity:.6}
+.tl-axis{display:grid;grid-template-columns:96px 1fr;gap:10px}
+.tl-axis div:last-child{position:relative;height:16px}
+.tl-axis span{position:absolute;transform:translateX(-50%);font-size:11px}
+@media (max-width: 760px){.timing-tips{grid-template-columns:1fr}.tl-row,.tl-axis{grid-template-columns:64px 1fr}}
+
 /* live strip */
 .livebar{display:grid;grid-template-columns:repeat(4,1fr) auto;gap:12px;align-items:stretch;margin:0 0 16px}
 .livebar .tile{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px 16px}
@@ -411,6 +432,26 @@ td.partial{color:var(--text-3)}
         <span><i style="background:var(--grid)"></i>Grid</span>
       </div>
       <div class="chart-box tall"><canvas id="hourChart" aria-label="Hourly energy by source"></canvas></div>
+    </section>
+
+    <section class="card full" id="timingCard">
+      <div class="timing-head">
+        <div>
+          <div class="eyebrow" id="timingEyebrow">Best times for appliances</div>
+          <h3>When the battery fills up, and when solar goes spare</h3>
+          <p class="hint" id="timingHint"></p>
+        </div>
+        <button type="button" class="btn" id="timingLoad">Analyse last 14 days</button>
+      </div>
+      <div class="sun-facts sun4" id="timingFacts"></div>
+      <div class="timing-tips" id="timingTips"></div>
+      <div class="legend" style="margin:14px 0 8px">
+        <span><i style="background:var(--battery);opacity:.45"></i>Charging</span>
+        <span><i style="background:var(--battery)"></i>Battery full</span>
+        <span><i class="hatch"></i>Spare solar (held back)</span>
+        <span><i style="background:var(--grid)"></i>On grid at reserve</span>
+      </div>
+      <div class="timeline" id="timeline" role="img" aria-label="Daily battery and spare solar timeline"></div>
     </section>
 
     <section class="grid2">
@@ -850,6 +891,7 @@ td.partial{color:var(--text-3)}
     projection(days);
     insights(sel);
     hourChart(sel);
+    timingReport(sel);
     sunChart(sel);
     socChart(sel);
     dayChart(days);
@@ -1289,6 +1331,113 @@ td.partial{color:var(--text-3)}
     if (!items.length) add('var(--text-3)', 'i', 'Load a full day to see patterns.');
     ul.innerHTML = items.slice(0, 6).join('');
   }
+
+  /* ---------- appliance timing report ---------- */
+  const TL0 = 5, TL1 = 19; // timeline window, hours
+  const toMin = t => t.getHours() * 60 + t.getMinutes();
+  const fmtMin = m => m == null ? '-' : String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(Math.round(m % 60)).padStart(2, '0');
+  const median = a => { const v = a.filter(x => x != null).sort((x, y) => x - y); if (!v.length) return null; const k = v.length >> 1; return v.length % 2 ? v[k] : (v[k-1] + v[k]) / 2; };
+  function dayTiming(d){
+    const rows = d.rows.filter(r => isFinite(r.soc) && r.soc > 0);
+    if (rows.length < 20) return null;
+    const res = S.reserve || 25;
+    let fullAt = null, fullEnd = null, resAt = null, resEnd = null;
+    for (const r of rows) {
+      const m = toMin(r.t);
+      if (fullAt == null && r.soc >= 99 && m >= 6 * 60) fullAt = m;
+      if (fullAt != null && fullEnd == null && r.soc < 95 && m > fullAt) fullEnd = m;
+      if (r.soc <= res + 1 && m < 12 * 60) resEnd = m;              // still at reserve in the morning
+      if (resAt == null && r.soc <= res + 1 && m >= 12 * 60) resAt = m; // reached reserve in the evening
+    }
+    if (fullAt != null && fullEnd == null) fullEnd = toMin(rows[rows.length - 1].t);
+    // spare solar: battery full and the panels could give at least 1 kW more than was used
+    const sl = solarSlots(d);
+    let spStart = null, spEnd = null, spareKwh = 0, spareKwSum = 0, spareN = 0;
+    sl.used.forEach((u, i) => {
+      const a = sl.avail[i];
+      if (u == null || a == null || (sl.soc[i] ?? 0) < 97) return;
+      const gap = a - u;
+      if (gap >= 1) { const m = i * 10; if (spStart == null) spStart = m; spEnd = m + 10; spareKwSum += gap; spareN++; }
+      if (gap > 0) spareKwh += gap / 6;
+    });
+    return {key:d.key, complete:d.complete, fullAt, fullEnd, resAt, resEnd, spStart, spEnd, spareKwh, spareKw: spareN ? spareKwSum / spareN : null};
+  }
+  function timingReport(sel){
+    const card = document.getElementById('timingCard');
+    const days = sel.map(dayTiming).filter(Boolean);
+    const btn = document.getElementById('timingLoad');
+    btn.classList.toggle('hidden', !LIVE.token);
+    if (!days.length) {
+      document.getElementById('timingHint').textContent = LIVE.token ? 'No 5-minute detail loaded for this period yet. Tap "Analyse last 14 days".' : 'Load an Excel export with at least one day of data.';
+      ['timingFacts', 'timingTips', 'timeline'].forEach(id => document.getElementById(id).innerHTML = '');
+      return;
+    }
+    const n = days.length, fulls = days.filter(d => d.fullAt != null);
+    const fullMed = median(fulls.map(d => d.fullAt)), fullMin = median([Math.min(...fulls.map(d => d.fullAt))]), fullMax = fulls.length ? Math.max(...fulls.map(d => d.fullAt)) : null;
+    const spS = median(days.map(d => d.spStart)), spE = median(days.map(d => d.spEnd));
+    const spareAvg = days.reduce((a, d) => a + d.spareKwh, 0) / n;
+    const spareKw = median(days.map(d => d.spareKw));
+    const resMed = median(days.map(d => d.resAt));
+    document.getElementById('timingEyebrow').textContent = 'Best times for appliances · ' + n + ' day' + (n > 1 ? 's' : '') + ' analysed';
+    document.getElementById('timingHint').textContent = (n < 5 ? 'Only ' + n + ' day' + (n > 1 ? 's' : '') + ' so far, so treat these as a first look. ' : '') +
+      'Times are typical (median) values. Spare solar is when the battery was full and the panels could have given at least 1 kW more.';
+    document.getElementById('timingFacts').innerHTML =
+      '<div><div class="v">' + fmtMin(fullMed) + '</div><div class="l">battery usually full' + (fulls.length < n ? ' (' + fulls.length + ' of ' + n + ' days)' : '') + '</div></div>' +
+      '<div><div class="v">' + (fulls.length > 1 ? fmtMin(fullMin) + '–' + fmtMin(fullMax) : '-') + '</div><div class="l">earliest – latest full</div></div>' +
+      '<div><div class="v">' + (spS != null ? fmtMin(spS) + '–' + fmtMin(spE) : '-') + '</div><div class="l">typical spare-solar window</div></div>' +
+      '<div><div class="v">' + kwh(spareAvg) + ' kWh</div><div class="l">spare solar per day' + (spareKw ? ', ~' + spareKw.toFixed(1) + ' kW' : '') + '</div></div>';
+    // suggestions
+    const tips = [];
+    if (spS != null && spE != null && spE - spS >= 30) {
+      const winH = (spE - spS) / 60, geyserH = spareAvg / 3;
+      tips.push('<div class="tip"><b>Geysers (~3 kW each)</b><div class="t">' + fmtMin(spS) + '–' + fmtMin(spE) + '</div>' +
+        (spareKw && spareKw >= 3 ? 'Enough spare for one geyser at a time. ' : 'Spare is usually under 3 kW, so the battery or grid will top up. ') +
+        'About ' + geyserH.toFixed(1) + ' geyser-hours of free heating a day; stagger them inside this window.</div>');
+      tips.push('<div class="tip"><b>Dishwasher / washing machine (~1.5–2 kW)</b><div class="t">start ' + fmtMin(spS) + '</div>' +
+        'Start once the battery is full so they run on spare solar instead of slowing the charge.</div>');
+      tips.push('<div class="tip"><b>Pool pump / other steady loads (~1 kW)</b><div class="t">' + fmtMin(spS) + '–' + fmtMin(Math.min(spE, spS + Math.round(winH * 60))) + '</div>' +
+        'Run through the spare window; ends ' + fmtMin(spE) + ' when the sun drops off.</div>');
+    } else if (fullMed != null) {
+      tips.push('<div class="tip"><b>Battery fills around ' + fmtMin(fullMed) + '</b>Little spare solar after that so far. Heavy loads before then slow the charge; after, they mostly come from solar.</div>');
+    } else {
+      tips.push('<div class="tip"><b>Battery didn\'t reach full</b>All the solar is going into the house and battery, so there\'s no spare window yet. Move heavy loads to the sunniest hours (see Peak sun) to keep them off the battery at night.</div>');
+    }
+    if (resMed != null) tips.push('<div class="tip"><b>Evening reserve</b><div class="t">' + fmtMin(resMed) + '</div>The battery usually reaches the ' + S.reserve + '% reserve around now. Avoid heavy loads after this, they come from the grid.</div>');
+    document.getElementById('timingTips').innerHTML = tips.slice(0, 3).join('');
+    // timeline
+    const span = (TL1 - TL0) * 60, pos = m => Math.max(0, Math.min(100, (m - TL0 * 60) / span * 100));
+    const seg = (cls, a, b, title) => a == null || b == null || b <= a ? '' : '<div class="tl-seg ' + cls + '" style="left:' + pos(a).toFixed(2) + '%;width:' + (pos(b) - pos(a)).toFixed(2) + '%" title="' + title + '"></div>';
+    let tl = '';
+    [...days].reverse().forEach(d => {
+      const [rise] = sunTimes(); const riseM = Math.round(rise * 60);
+      tl += '<div class="tl-row"><div>' + niceDay(d.key) + (d.complete ? '' : ' *') + '</div><div class="tl-track">' +
+        seg('res', TL0 * 60, d.resEnd, 'At reserve until ' + fmtMin(d.resEnd)) +
+        seg('chg', d.resEnd ?? riseM, d.fullAt ?? TL1 * 60, 'Charging' + (d.fullAt ? ' until ' + fmtMin(d.fullAt) : '')) +
+        seg('tfull', d.fullAt, d.fullEnd, 'Full ' + fmtMin(d.fullAt) + '–' + fmtMin(d.fullEnd)) +
+        seg('spare', d.spStart, d.spEnd, 'Spare solar ' + fmtMin(d.spStart) + '–' + fmtMin(d.spEnd) + ' · ' + kwh(d.spareKwh) + ' kWh') +
+        seg('res', d.resAt, TL1 * 60, 'Reached reserve at ' + fmtMin(d.resAt)) +
+        (d.fullAt != null ? '<div class="tl-mark" style="left:' + pos(d.fullAt).toFixed(2) + '%" title="Full at ' + fmtMin(d.fullAt) + '"></div>' : '') +
+        '</div></div>';
+    });
+    let ax = '';
+    for (let h = TL0; h <= TL1; h += 2) ax += '<span style="left:' + pos(h * 60) + '%">' + String(h).padStart(2, '0') + ':00</span>';
+    tl += '<div class="tl-axis"><div></div><div>' + ax + '</div></div>';
+    document.getElementById('timeline').innerHTML = tl;
+  }
+  document.getElementById('timingLoad').onclick = async () => {
+    if (!LIVE.token || !DATA) return;
+    const b = document.getElementById('timingLoad'); b.disabled = true;
+    const t = todayKey(), keys = Array.from({length:14}, (_, i) => shiftKey(t, -i));
+    const need = keys.filter(k => !(DATA.days.find(d => d.key === k) || {rows:[]}).rows.length);
+    let done = 0;
+    for (const k of need) { b.textContent = 'Loading ' + (++done) + ' / ' + need.length + '…'; try { await liveDay(k); } catch(e){} }
+    derive(); b.disabled = false; b.textContent = 'Analyse last 14 days';
+    PERIOD = 'week'; // the report follows the period; show a multi-day view
+    const minKey = shiftKey(t, -13);
+    PERIOD = DATA.days.some(d => d.key < shiftKey(t, -6) && d.key >= minKey && d.rows.length) ? 'all' : 'week';
+    render();
+    document.getElementById('timingCard').scrollIntoView({behavior:'smooth', block:'start'});
+  };
 
   /* ---------- charts ---------- */
   function baseOpts(){
