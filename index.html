@@ -1184,7 +1184,9 @@ td.partial{color:var(--text-3)}
       const kwv = v => v.toFixed(1) + ' kW';
       const g = gridDir(LIVE.flow);
       N.solar.val = kwv(NOW.pvKw); N.solar.sub = NOW.pvKw > 0.05 ? 'producing now' : 'no sun now';
-      N.grid.val = kwv(g === 'idle' ? 0 : NOW.gridKw); N.grid.sub = g + ' now';
+      const gw = num(LIVE.flow.gridOrMeterPower), trickle = g === 'idle' && gw > 10 && !truthy(LIVE.flow.toGrid);
+      N.grid.val = trickle ? Math.round(gw) + ' W' : kwv(g === 'idle' ? 0 : NOW.gridKw);
+      N.grid.sub = trickle ? 'trickle now' : g + ' now';
       N.house.val = kwv(NOW.loadKw); N.house.sub = 'using now';
     }
     // with live data, flows run at a speed that matches the power right now
@@ -1206,12 +1208,14 @@ td.partial{color:var(--text-3)}
       const dur = len / pxs;
       const nDots = kw < 0.15 ? 1 : kw < 1 ? 2 : kw < 4 ? 3 : 4;
       const strong = Math.min(kw / 6, 1);
+      const lineW = Math.max(2.5, Math.min(11, 2 + 2.5 * Math.sqrt(kw)));
       const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
       const dots = flowing && !reduce ? Array.from({length:nDots}, (_, i) =>
-        '<circle r="' + (5 + strong * 3).toFixed(1) + '" style="fill:' + col + ';opacity:' + (kw < 0.15 ? .12 : .22) + '"><animateMotion dur="' + dur.toFixed(2) + 's" begin="-' + (i*dur/nDots).toFixed(2) + 's" repeatCount="indefinite" path="' + d + '"/></circle>' +
-        '<circle r="' + (2.6 + strong * 1.6).toFixed(1) + '" style="fill:' + col + ';opacity:' + (kw < 0.15 ? .55 : 1) + '"><animateMotion dur="' + dur.toFixed(2) + 's" begin="-' + (i*dur/nDots).toFixed(2) + 's" repeatCount="indefinite" path="' + d + '"/></circle>').join('') : '';
+        '<circle r="' + Math.max(5 + strong * 3, lineW / 2 + 4).toFixed(1) + '" style="fill:' + col + ';opacity:' + (kw < 0.15 ? .12 : .22) + '"><animateMotion dur="' + dur.toFixed(2) + 's" begin="-' + (i*dur/nDots).toFixed(2) + 's" repeatCount="indefinite" path="' + d + '"/></circle>' +
+        '<circle r="' + Math.max(2.6 + strong * 1.6, lineW / 2 + 1.2).toFixed(1) + '" style="fill:' + col + ';opacity:' + (kw < 0.15 ? .55 : 1) + '"><animateMotion dur="' + dur.toFixed(2) + 's" begin="-' + (i*dur/nDots).toFixed(2) + 's" repeatCount="indefinite" path="' + d + '"/></circle>').join('') : '';
       return '<path class="pipe base" d="' + d + '"/>' +
-        (flowing ? '<path class="pipe" d="' + d + '" style="stroke:' + col + ';opacity:' + (0.2 + strong * 0.45).toFixed(2) + '"/>' + dots : '') +
+        // line thickness follows the power too: 2.5 px for a trickle, ~7 px at 4 kW, capped at 11 px
+        (flowing ? '<path class="pipe" d="' + d + '" style="stroke:' + col + ';stroke-width:' + lineW.toFixed(1) + 'px;opacity:' + (0.25 + strong * 0.4).toFixed(2) + '"/>' + dots : '') +
         lines.map((t, i) => '<text class="pipe-label" x="' + lx + '" y="' + (my + i*16) + '" text-anchor="' + (left ? 'start' : 'end') + '">' + t + '</text>').join('');
     };
     let h = '';
