@@ -1214,6 +1214,7 @@ td.partial{color:var(--text-3)}
       const dots = flowing && !reduce ? Array.from({length:nDots}, (_, i) =>
         '<circle r="' + (5 + strong * 3).toFixed(1) + '" style="fill:' + col + ';opacity:' + (kw < 0.15 ? .12 : .22) + '"><animateMotion dur="' + dur.toFixed(2) + 's" begin="-' + (i*dur/nDots).toFixed(2) + 's" repeatCount="indefinite" path="' + d + '"/></circle>' +
         '<circle r="' + (2.6 + strong * 1.6).toFixed(1) + '" style="fill:' + col + ';opacity:' + (kw < 0.15 ? .55 : 1) + '"><animateMotion dur="' + dur.toFixed(2) + 's" begin="-' + (i*dur/nDots).toFixed(2) + 's" repeatCount="indefinite" path="' + d + '"/></circle>').join('') : '';
+      if (!flowing) return '';   // nothing flowing on this line: hide it completely
       return '<path class="pipe base" d="' + d + '"/>' +
         // line thickness follows the power: a thin thread for a trickle, a bold line at full power
         (flowing ? '<path class="pipe" d="' + d + '" style="stroke:' + col + ';stroke-width:' + lineW.toFixed(1) + 'px;opacity:' + (0.28 + strong * 0.37).toFixed(2) + '"/>' +
