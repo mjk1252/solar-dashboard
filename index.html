@@ -115,6 +115,8 @@ input[type=file]{display:none}
 .chart-box.tall{height:300px}
 .sun-facts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:4px 0 14px}
 .sun-facts div .v{font-size:20px;font-weight:300}
+.sun-facts.sun4{grid-template-columns:repeat(4,1fr)}
+.legend .dash{display:inline-block;width:16px;height:0;border-top:2px dashed var(--text-2);margin-right:6px;vertical-align:3px}
 .sun-facts div .l{font-size:12px;color:var(--text-3)}
 .insights{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:10px}
 .insights li{display:flex;gap:12px;align-items:flex-start;font-size:14px;color:var(--text-2);padding:12px 14px;background:var(--surface-2);border-radius:14px}
@@ -294,7 +296,7 @@ td.partial{color:var(--text-3)}
   .wrap{padding:0 16px 48px}
   .kpis{gap:10px}
   .card{padding:18px;border-radius:18px}
-  .sun-facts{grid-template-columns:1fr 1fr}
+  .sun-facts,.sun-facts.sun4{grid-template-columns:1fr 1fr}
   .flow .pipe-label{display:none}
   .flow svg{margin:4px -8px 0;width:calc(100% + 16px)}
   .status h2{font-size:24px}
@@ -416,11 +418,13 @@ td.partial{color:var(--text-3)}
         <div class="eyebrow">Peak sun</div>
         <h3>Solar production</h3>
         <p class="hint" id="sunHint">Solar power through the day.</p>
-        <div class="sun-facts">
-          <div><div class="v" id="sunPeak">-</div><div class="l">peak output</div></div>
+        <div class="sun-facts sun4">
+          <div><div class="v" id="sunPeak">-</div><div class="l" id="sunPeakL">peak output</div></div>
           <div><div class="v" id="sunPeakAt">-</div><div class="l">peak time</div></div>
           <div><div class="v" id="sunWindow">-</div><div class="l">strong-sun window</div></div>
+          <div><div class="v" id="sunSpare">-</div><div class="l" id="sunSpareL">spare solar</div></div>
         </div>
+        <div class="legend" id="sunLegend" style="margin-bottom:8px"></div>
         <div class="chart-box"><canvas id="sunChart" aria-label="Solar power curve"></canvas></div>
       </div>
       <div class="card">
@@ -479,6 +483,11 @@ td.partial{color:var(--text-3)}
     <div class="field"><label for="loc">Weather location</label>
       <div class="in"><input id="loc" type="text" placeholder="e.g. -26.20, 28.05" inputmode="decimal"></div>
       <small>Latitude, longitude for the weather backdrop. Leave blank to use your plant's location (or Johannesburg). Rounded to ~1 km before it's sent to Open-Meteo.</small></div>
+    <div class="field"><label for="kwp">Solar panels</label>
+      <div class="in"><input id="kwp" type="number" step="0.1" min="0" inputmode="decimal"><span>kWp</span></div>
+      <small>Total panel size, used to estimate how much solar was available. E.g. 16 × 545 W + 10 × 430 W ≈ 13 kWp.</small></div>
+    <div class="field"><label for="face">Panels face</label>
+      <div class="in"><select id="face"><option value="north">North</option><option value="ne">North-east</option><option value="nw">North-west</option><option value="east">East</option><option value="west">West</option><option value="flat">Flat</option></select></div></div>
     <div class="field"><label for="cap">Battery size</label>
       <div class="in"><input id="cap" type="number" step="0.01" min="1" inputmode="decimal"><span>kWh</span></div>
       <small>Used for "full in…" and "lasts until…" estimates.</small></div>
@@ -520,18 +529,19 @@ td.partial{color:var(--text-3)}
 <script>
 (() => {
   /* ---------- settings ---------- */
-  const DEF = {rate:5, feed:0, fixed:0, cost:0, reserve:25, cap:16.07, loc:''};
+  const DEF = {rate:5, feed:0, fixed:0, cost:0, reserve:25, cap:16.07, loc:'', kwp:13, face:'north'};
   const store = {
     get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
     set(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
   };
   let S = {...DEF};
   try { Object.assign(S, JSON.parse(store.get('solar.settings') || '{}')); } catch(e){}
-  const ids = ['rate','feed','fixed','cost','reserve','cap','loc'];
+  const ids = ['rate','feed','fixed','cost','reserve','cap','loc','kwp','face'];
   ids.forEach(k => {
     const el = document.getElementById(k);
     el.value = S[k];
     el.addEventListener('input', () => {
+      if (k === 'face') { S.face = el.value; store.set('solar.settings', JSON.stringify(S)); loadWeather(); return; }
       if (k === 'loc') { S.loc = el.value; store.set('solar.settings', JSON.stringify(S)); clearTimeout(el._t); el._t = setTimeout(() => loadWeather(), 800); return; }
       const v = parseFloat(el.value);
       S[k] = isFinite(v) ? v : 0;
@@ -863,16 +873,36 @@ td.partial{color:var(--text-3)}
     let [lat, lon] = wxCoords();
     lat = Math.round(lat * 100) / 100; lon = Math.round(lon * 100) / 100;
     try {
+      // Open-Meteo azimuth: 0 = facing south, 180 = facing north (what you want in the southern hemisphere)
+      const AZ = {north:180, ne:-135, nw:135, east:-90, west:90, flat:0}, az = AZ[S.face] ?? 180, tilt = S.face === 'flat' ? 0 : 25;
       const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
-        '&current=temperature_2m,weather_code,cloud_cover,is_day&daily=sunrise,sunset&forecast_days=1&timezone=auto');
+        '&current=temperature_2m,weather_code,cloud_cover,is_day&daily=sunrise,sunset&forecast_days=1&past_days=31' +
+        '&hourly=global_tilted_irradiance&tilt=' + tilt + '&azimuth=' + az + '&timezone=auto');
       const j = await r.json();
       if (!j || !j.current) throw new Error('no weather');
       WX.data = {code:j.current.weather_code, cloud:j.current.cloud_cover, day:!!j.current.is_day, temp:j.current.temperature_2m,
-        sunrise:j.daily && j.daily.sunrise && j.daily.sunrise[0], sunset:j.daily && j.daily.sunset && j.daily.sunset[0]};
+        sunrise:j.daily && j.daily.sunrise && j.daily.sunrise[j.daily.sunrise.length - 1], sunset:j.daily && j.daily.sunset && j.daily.sunset[j.daily.sunset.length - 1]};
+      WX.gti = new Map();
+      if (j.hourly && j.hourly.time) j.hourly.time.forEach((t, i) => { const v = j.hourly.global_tilted_irradiance[i]; if (v != null) WX.gti.set(t, v); });
       WX.at = Date.now();
     } catch(e) { /* keep the time/solar-based fallback */ }
     applyWeather();
     if (DATA) render();
+  }
+  // estimated solar the panels could make at time t (kW), from modelled sunlight on the panel.
+  // Open-Meteo hourly radiation is the average of the hour *before* the timestamp, so we
+  // interpolate between hour mid-points.
+  function availKw(t){
+    if (!WX.gti || !WX.gti.size || !(S.kwp > 0)) return null;
+    const x = t.getHours() + t.getMinutes() / 60 - 0.5, j0 = Math.floor(x), fr = x - j0;
+    const at = j => { // value labelled hour j+1 on this day (mid-point j+0.5)
+      const d = new Date(t.getFullYear(), t.getMonth(), t.getDate(), j + 1);
+      return WX.gti.get(dayKey(d) + 'T' + String(d.getHours()).padStart(2, '0') + ':00');
+    };
+    const a = at(j0), b = at(j0 + 1);
+    if (a == null && b == null) return null;
+    const g = (a ?? b) * (1 - fr) + (b ?? a) * fr;
+    return Math.min(S.kwp * g / 1000 * 0.8, S.kwp);   // 0.8 ≈ system losses (heat, wiring, inverter)
   }
   function sunTimes(){
     const d = WX.data, f = v => { const t = v && toDate(v); return t ? t.getHours() + t.getMinutes() / 60 : null; };
@@ -968,7 +998,9 @@ td.partial{color:var(--text-3)}
         sub = 'The battery is at ' + s0 + ', so it should be helping. If this keeps happening, check Use Timer in the inverter settings.';
       } else if (pv > 0.05 && soc >= 99) {
         head = 'Battery full, and the sun is doing all the work.';
-        sub = 'Spare solar is being held back because export is off. Good time to run the geysers, dishwasher or pool pump.';
+        const av = availKw(now), held = av != null ? av - pv : null;
+        sub = (held != null && held > 0.5 ? 'About ' + held.toFixed(1) + ' kW of solar is being held back' : 'Spare solar is being held back') +
+              ' because export is off. Good time to run the geysers, dishwasher or pool pump.';
       } else if (pv > 0.05 && NOW.batt === 'charging') {
         head = mode === 'cloudy' || wk === 'overcast' || wk === 'rain' || wk === 'storm' ? (wk === 'rain' || wk === 'storm' ? 'Rain or not, solar is still carrying the house.' : 'Clouds about, but solar is still carrying the house.') : 'Running on sunshine and filling the battery.';
         sub = 'Solar ' + pv.toFixed(1) + ' kW · house ' + load.toFixed(1) + ' kW · battery ' + s0 + (toFull ? ', full in about ' + toFull : '') + '. The grid is idle.';
@@ -1057,6 +1089,10 @@ td.partial{color:var(--text-3)}
     const h = when.getHours() + when.getMinutes() / 60;
     const [rise, set] = sunTimes();           // real sunrise/sunset from the weather, else ~Gauteng summer
     if (h < rise || h > set) return kw > 0.05 ? 'sun' : 'night';
+    if (WX.data) {
+      const c = WX.data.code;
+      return WX.data.cloud >= 65 || c === 3 || c >= 45 ? 'cloudy' : 'sun';
+    }
     let peak = 0;
     if (DATA) DATA.rows.forEach(r => { if (r.pv > peak) peak = r.pv; });
     peak = Math.max(peak / 1000, 3);          // best output seen so far, at least 3 kW
@@ -1248,6 +1284,8 @@ td.partial{color:var(--text-3)}
     let pk = {v:0, t:null};
     sel.forEach(d => d.rows.forEach(r => { if (r.load > pk.v) pk = {v:r.load, t:r.t}; }));
     if (pk.t) add('var(--text-3)', '↑', 'Highest house load was <b>' + (pk.v/1000).toFixed(1) + ' kW</b> at ' + hm(pk.t) + (sel.length > 1 ? ' on ' + niceDay(dayKey(pk.t)) : '') + (pk.v > 7500 ? ', more than the battery can supply on its own (~7.5 kW).' : '.'));
+    const spare = spareSolar(sel);
+    if (spare != null && spare > 2) add('var(--solar)', '☀', 'About <b>' + kwh(spare) + ' kWh</b> of solar went unused because the battery was full and export is off. Heating the geysers in that window would use it for free.');
     if (!items.length) add('var(--text-3)', 'i', 'Load a full day to see patterns.');
     ul.innerHTML = items.slice(0, 6).join('');
   }
@@ -1301,31 +1339,58 @@ td.partial{color:var(--text-3)}
       ]}, options:o});
   }
 
+  // per day: average used solar and estimated available solar in 10-minute slots
+  function solarSlots(d){
+    const SL = 144, sum = new Array(SL).fill(0), cnt = new Array(SL).fill(0), av = new Array(SL).fill(null), soc = new Array(SL).fill(null);
+    d.rows.forEach(r => { const s = Math.floor((r.t.getHours()*60 + r.t.getMinutes())/10); sum[s] += r.pv || 0; cnt[s]++; if (isFinite(r.soc)) soc[s] = Math.max(soc[s] ?? 0, r.soc); });
+    const [y, m, dd] = d.key.split('-').map(Number);
+    for (let i = 0; i < SL; i++) av[i] = availKw(new Date(y, m-1, dd, Math.floor(i/6), (i%6)*10 + 5));
+    return {used: sum.map((v, i) => cnt[i] ? v / cnt[i] / 1000 : null), avail: av, soc};
+  }
+  function spareSolar(sel){
+    // kWh the panels could have made but didn't: only counted while the battery was full (so the
+    // inverter was holding solar back), which keeps a slightly optimistic sunlight estimate honest
+    let kwh = 0, any = false;
+    sel.forEach(d => { const S2 = solarSlots(d); S2.used.forEach((u, i) => { const a = S2.avail[i]; if (u != null && a != null) { any = true; if ((S2.soc[i] ?? 0) >= 97) kwh += Math.max(a - u, 0) / 6; } }); });
+    return any ? kwh : null;
+  }
   function sunChart(sel){
-    // average PV power per 10-minute slot
-    const SL = 144, sum = new Array(SL).fill(0), cnt = new Array(SL).fill(0);
-    sel.forEach(d => d.rows.forEach(r => { const s = Math.floor((r.t.getHours()*60 + r.t.getMinutes())/10); sum[s] += r.pv || 0; cnt[s]++; }));
-    const avg = sum.map((s, i) => cnt[i] ? s / cnt[i] / 1000 : null);
-    let pk = 0, pki = -1; avg.forEach((v, i) => { if (v != null && v > pk) { pk = v; pki = i; } });
+    const SL = 144, used = new Array(SL).fill(null), avail = new Array(SL).fill(null), uc = new Array(SL).fill(0), ac = new Array(SL).fill(0);
+    sel.forEach(d => {
+      const S2 = solarSlots(d);
+      S2.used.forEach((v, i) => { if (v != null) { used[i] = (used[i] || 0) + v; uc[i]++; } });
+      S2.avail.forEach((v, i) => { if (v != null) { avail[i] = (avail[i] || 0) + v; ac[i]++; } });
+    });
+    const u = used.map((v, i) => uc[i] ? v / uc[i] : null), a = avail.map((v, i) => ac[i] ? v / ac[i] : null);
+    const hasAvail = a.some(v => v != null && v > 0.05);
+    const ref = hasAvail ? a : u;                       // peak sun from what was available, if we know it
+    let pk = 0, pki = -1; ref.forEach((v, i) => { if (v != null && v > pk) { pk = v; pki = i; } });
     const lab = i => String(Math.floor(i/6)).padStart(2,'0') + ':' + String((i%6)*10).padStart(2,'0');
     let w0 = -1, w1 = -1;
-    if (pk > 0) avg.forEach((v, i) => { if (v != null && v >= pk*0.5) { if (w0 < 0) w0 = i; w1 = i; } });
+    if (pk > 0) ref.forEach((v, i) => { if (v != null && v >= pk*0.5) { if (w0 < 0) w0 = i; w1 = i; } });
     document.getElementById('sunPeak').textContent = pk ? pk.toFixed(1) + ' kW' : '-';
+    document.getElementById('sunPeakL').textContent = hasAvail ? 'peak available' : 'peak output';
     document.getElementById('sunPeakAt').textContent = pki >= 0 ? lab(pki) : '-';
     document.getElementById('sunWindow').textContent = w0 >= 0 ? lab(w0) + '–' + lab(w1+1) : '-';
-    document.getElementById('sunHint').textContent = (sel.length > 1 ? 'Average solar output across ' + sel.length + ' days. ' : 'Solar output through the day. ') +
-      'With export off, panels are turned down once the house and battery are covered, so this is solar used, not the panels\' full potential.';
+    const spare = spareSolar(sel);
+    document.getElementById('sunSpare').textContent = spare != null ? kwh(spare) + ' kWh' : '-';
+    document.getElementById('sunSpareL').textContent = spare != null ? 'spare solar unused' + (sel.length > 1 ? ' (total)' : '') : 'spare solar (needs weather)';
+    document.getElementById('sunHint').textContent = hasAvail
+      ? 'Solid: solar actually used. Dashed: estimated solar available from today\'s sunlight on ' + S.kwp + ' kWp of panels. The gap is solar held back because the battery was full and export is off.'
+      : 'Solar used through the day. With export off, panels are turned down once the house and battery are covered, so this isn\'t their full potential.';
+    document.getElementById('sunLegend').innerHTML = hasAvail
+      ? '<span><i style="background:var(--solar)"></i>Solar used</span><span><span class="dash"></span>Available (estimate)</span>' : '';
     const o = baseOpts();
     o.scales.y.title = {display:true, text:'kW', color:css('--text-3')};
     o.scales.x.ticks.callback = function(v){ const step = this.chart.width < 500 ? 36 : 18; return v % step === 0 ? this.getLabelForValue(v) : ''; };
     o.scales.x.ticks.autoSkip = false;
-    o.plugins.tooltip.filter = c => c.datasetIndex === 0;
-    o.plugins.tooltip.callbacks = {label: c => ' Solar: ' + (c.parsed.y ?? 0).toFixed(2) + ' kW'};
+    o.plugins.tooltip.filter = c => c.datasetIndex < 2 && c.parsed.y != null;
+    o.plugins.tooltip.callbacks = {label: c => ' ' + c.dataset.label + ': ' + (c.parsed.y ?? 0).toFixed(2) + ' kW'};
     const solar = css('--solar');
-    put('sunChart', {type:'line', data:{labels: avg.map((_, i) => lab(i)), datasets:[
-      {label:'Solar', data:avg, borderColor:solar, backgroundColor:solar + '33', fill:true, tension:.35, pointRadius:0, pointHoverRadius:5, pointHoverBorderColor:css('--surface'), pointHoverBorderWidth:2, borderWidth:2, spanGaps:true},
-      {label:'Peak', data:avg.map((v, i) => i === pki ? v : null), pointRadius:5, pointBackgroundColor:solar, pointBorderColor:css('--surface'), pointBorderWidth:2, showLine:false},
-    ]}, options:o});
+    const ds = [{label:'Solar used', data:u, borderColor:solar, backgroundColor:solar + '33', fill:true, tension:.35, pointRadius:0, pointHoverRadius:5, pointHoverBorderColor:css('--surface'), pointHoverBorderWidth:2, borderWidth:2, spanGaps:true}];
+    if (hasAvail) ds.push({label:'Available (est.)', data:a, borderColor:css('--text-2'), borderDash:[5,4], borderWidth:2, fill:false, tension:.35, pointRadius:0, pointHoverRadius:4, spanGaps:true});
+    ds.push({label:'Peak', data:ref.map((v, i) => i === pki ? v : null), pointRadius:5, pointBackgroundColor:hasAvail ? css('--text-2') : solar, pointBorderColor:css('--surface'), pointBorderWidth:2, showLine:false});
+    put('sunChart', {type:'line', data:{labels: u.map((_, i) => lab(i)), datasets:ds}, options:o});
   }
 
   function socChart(sel){
