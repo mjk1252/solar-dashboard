@@ -76,7 +76,7 @@ input[type=file]{display:none}
 .flow-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
 .flow-meta{font-size:12px;color:var(--text-3)}
 .flow svg{margin-top:6px}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:22px}
+.card{background:var(--card, var(--surface));border:1px solid var(--line);border-radius:20px;padding:22px;-webkit-backdrop-filter:blur(16px) saturate(1.2);backdrop-filter:blur(16px) saturate(1.2)}
 .eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-3);font-weight:500}
 .flow svg{width:100%;height:auto;display:block}
 .flow .node-label{font-size:12px;fill:var(--text-3);letter-spacing:.12em;text-transform:uppercase}
@@ -143,38 +143,38 @@ td.partial{color:var(--text-3)}
 .field input{flex:1;border:0;background:transparent;color:var(--text);font:inherit;font-size:16px;padding:11px 8px;min-width:0}
 .field small{display:block;color:var(--text-3);font-size:11.5px;margin-top:5px}
 /* weather backdrop (whole page) */
-:root{--cloud:rgba(110,120,140,.10);--rainc:rgba(90,110,140,.16);--wx:.75}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--cloud:rgba(255,255,255,.055);--rainc:rgba(190,205,230,.13);--wx:1}}
-:root[data-theme="dark"]{--cloud:rgba(255,255,255,.055);--rainc:rgba(190,205,230,.13);--wx:1}
+:root{--cloud:rgba(110,120,140,.18);--rainc:rgba(80,100,135,.24);--wx:.9;--card:rgba(252,252,251,.74)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--cloud:rgba(255,255,255,.11);--rainc:rgba(190,205,230,.22);--wx:1;--card:rgba(26,26,25,.72)}}
+:root[data-theme="dark"]{--cloud:rgba(255,255,255,.11);--rainc:rgba(190,205,230,.22);--wx:1;--card:rgba(26,26,25,.72)}
 .wx-bg{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
 .wx-bg>div{position:absolute;inset:0;opacity:0;transition:opacity 1.6s ease}
 .wx-a{inset:-15% !important}
 .wx-b{inset:0 -60% !important}
 /* clear day: warm sun glow, top right */
-.wx-bg[data-wx="clear"] .wx-a{opacity:var(--wx);background:radial-gradient(55% 45% at 88% -8%, rgba(255,186,70,.26), transparent 70%), linear-gradient(180deg, rgba(80,140,230,.10), transparent 55%);animation:breathe 9s ease-in-out infinite}
+.wx-bg[data-wx="clear"] .wx-a{opacity:var(--wx);background:radial-gradient(60% 55% at 88% -10%, rgba(255,180,60,.50), rgba(255,170,60,.12) 45%, transparent 72%), linear-gradient(180deg, rgba(70,140,240,.22), rgba(70,140,240,.05) 50%, transparent 75%);animation:breathe 9s ease-in-out infinite}
 /* partly cloudy: softer sun plus drifting clouds */
-.wx-bg[data-wx="partly"] .wx-a{opacity:var(--wx);background:radial-gradient(45% 38% at 85% -6%, rgba(255,186,70,.17), transparent 70%), linear-gradient(180deg, rgba(90,130,200,.08), transparent 55%)}
+.wx-bg[data-wx="partly"] .wx-a{opacity:var(--wx);background:radial-gradient(50% 45% at 85% -8%, rgba(255,180,60,.32), transparent 70%), linear-gradient(180deg, rgba(90,130,210,.18), transparent 65%)}
 .wx-bg[data-wx="partly"] .wx-b,.wx-bg[data-wx="overcast"] .wx-b,.wx-bg[data-wx="rain"] .wx-b,.wx-bg[data-wx="storm"] .wx-b,.wx-bg[data-wx="cloudy-night"] .wx-b{opacity:1;
-  background:radial-gradient(14% 7% at 12% 12%, var(--cloud), transparent 70%),radial-gradient(18% 8% at 30% 8%, var(--cloud), transparent 70%),
-             radial-gradient(16% 7% at 52% 15%, var(--cloud), transparent 70%),radial-gradient(20% 9% at 74% 9%, var(--cloud), transparent 70%),
+  background:radial-gradient(18% 9% at 12% 12%, var(--cloud), transparent 70%),radial-gradient(22% 10% at 30% 7%, var(--cloud), transparent 70%),
+             radial-gradient(20% 9% at 52% 16%, var(--cloud), transparent 70%),radial-gradient(24% 11% at 74% 8%, var(--cloud), transparent 70%),
              radial-gradient(15% 7% at 90% 18%, var(--cloud), transparent 70%);animation:clouds 140s linear infinite alternate}
 /* overcast / rain / storm: grey sky, denser clouds */
-.wx-bg[data-wx="overcast"] .wx-a,.wx-bg[data-wx="rain"] .wx-a,.wx-bg[data-wx="storm"] .wx-a{opacity:var(--wx);background:linear-gradient(180deg, rgba(140,150,168,.16), transparent 65%)}
+.wx-bg[data-wx="overcast"] .wx-a,.wx-bg[data-wx="rain"] .wx-a,.wx-bg[data-wx="storm"] .wx-a{opacity:var(--wx);background:linear-gradient(180deg, rgba(140,150,170,.34), rgba(140,150,170,.08) 60%, transparent 85%)}
 .wx-bg[data-wx="rain"] .wx-rain,.wx-bg[data-wx="storm"] .wx-rain{opacity:1;background:repeating-linear-gradient(104deg, transparent 0 13px, var(--rainc) 13px 14px);background-size:220px 220px;
   -webkit-mask-image:linear-gradient(180deg,#000,transparent 85%);mask-image:linear-gradient(180deg,#000,transparent 85%);animation:rain .55s linear infinite}
 .wx-bg[data-wx="storm"] .wx-flash{background:#fff;animation:flash 11s linear infinite}
 /* fog: a slow moving haze */
-.wx-bg[data-wx="fog"] .wx-a{opacity:var(--wx);background:linear-gradient(180deg, rgba(170,175,185,.18), rgba(170,175,185,.06) 60%, transparent)}
+.wx-bg[data-wx="fog"] .wx-a{opacity:var(--wx);background:linear-gradient(180deg, rgba(170,175,185,.34), rgba(170,175,185,.12) 60%, transparent)}
 .wx-bg[data-wx="fog"] .wx-b{opacity:1;background:radial-gradient(60% 12% at 30% 30%, var(--cloud), transparent 70%),radial-gradient(60% 12% at 70% 55%, var(--cloud), transparent 70%);animation:clouds 90s linear infinite alternate}
 /* night: deep blue with stars; cloudy night keeps a few clouds */
-.wx-bg[data-wx="clear-night"] .wx-a,.wx-bg[data-wx="cloudy-night"] .wx-a{opacity:var(--wx);background:radial-gradient(60% 45% at 80% -10%, rgba(70,85,170,.22), transparent 70%)}
+.wx-bg[data-wx="clear-night"] .wx-a,.wx-bg[data-wx="cloudy-night"] .wx-a{opacity:var(--wx);background:radial-gradient(70% 55% at 80% -10%, rgba(70,90,190,.40), rgba(40,50,120,.12) 50%, transparent 75%)}
 .wx-bg[data-wx="clear-night"] .wx-rain{opacity:1;background:
   radial-gradient(1.3px 1.3px at 8% 12%, rgba(255,255,255,.7), transparent 60%),radial-gradient(1px 1px at 19% 30%, rgba(255,255,255,.5), transparent 60%),
   radial-gradient(1.5px 1.5px at 33% 8%, rgba(255,255,255,.6), transparent 60%),radial-gradient(1px 1px at 46% 22%, rgba(255,255,255,.45), transparent 60%),
   radial-gradient(1.2px 1.2px at 58% 5%, rgba(255,255,255,.6), transparent 60%),radial-gradient(1px 1px at 67% 27%, rgba(255,255,255,.4), transparent 60%),
   radial-gradient(1.4px 1.4px at 79% 14%, rgba(255,255,255,.65), transparent 60%),radial-gradient(1px 1px at 91% 6%, rgba(255,255,255,.5), transparent 60%),
   radial-gradient(1px 1px at 96% 33%, rgba(255,255,255,.4), transparent 60%),radial-gradient(1.2px 1.2px at 4% 40%, rgba(255,255,255,.35), transparent 60%);
-  animation:twinkle 6s ease-in-out infinite}
+  animation:twinkle 6s ease-in-out infinite;filter:drop-shadow(0 0 1px rgba(255,255,255,.6))}
 :root[data-theme="light"] .wx-bg[data-wx="clear-night"] .wx-rain{opacity:0}
 @media (prefers-color-scheme: light){:root:not([data-theme="dark"]) .wx-bg[data-wx="clear-night"] .wx-rain{opacity:0}}
 @keyframes clouds{from{transform:translateX(-12%)}to{transform:translateX(12%)}}
@@ -949,6 +949,7 @@ td.partial{color:var(--text-3)}
   const truthy = v => v === true || v === 1 || v === '1' || String(v).toLowerCase() === 'true';
   function battDir(f){
     const p = num(f.battPower);
+    if (Math.abs(p) < 30) return 'idle';
     if (truthy(f.toBat)) return 'charging';
     if (truthy(f.batTo)) return 'discharging';
     if (Math.abs(p) < 30) return 'idle';
@@ -957,6 +958,7 @@ td.partial{color:var(--text-3)}
   }
   function gridDir(f){
     const p = num(f.gridOrMeterPower);
+    if (Math.abs(p) < 30) return 'idle';
     if (truthy(f.gridTo)) return 'importing';
     if (truthy(f.toGrid)) return 'exporting';
     if (Math.abs(p) < 30) return 'idle';
