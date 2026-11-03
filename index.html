@@ -47,7 +47,7 @@ body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-s
 header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:22px 0 18px;flex-wrap:wrap}
 .brand{display:flex;flex-direction:column}
 .brand h1{margin:0;font-size:15px;font-weight:500;letter-spacing:.18em;text-transform:uppercase}
-.brand .sub{font-size:13px;color:var(--text-3);margin-top:2px}
+.brand .sub{font-size:13px;color:var(--on-sky-3, var(--text-3));margin-top:2px}
 .actions{display:flex;gap:8px;flex-wrap:wrap}
 button,.btn{font:inherit;font-size:13px;font-weight:500;border:1px solid var(--line);background:var(--surface);color:var(--text);
   padding:9px 14px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
@@ -164,7 +164,7 @@ td.partial{color:var(--text-3)}
   repeating-linear-gradient(100deg, transparent 0 18px, var(--drop) 18px 19.5px, transparent 19.5px 41px),
   repeating-linear-gradient(103deg, transparent 0 27px, var(--drop2) 27px 28px, transparent 28px 63px);
   background-size:280px 280px, 340px 340px;animation:rain .5s linear infinite;
-  -webkit-mask-image:linear-gradient(180deg,#000 30%,transparent 90%);mask-image:linear-gradient(180deg,#000 30%,transparent 90%)}
+  -webkit-mask-image:linear-gradient(180deg,rgba(0,0,0,.12) 0,rgba(0,0,0,.18) 22%,#000 34%,transparent 92%);mask-image:linear-gradient(180deg,rgba(0,0,0,.12) 0,rgba(0,0,0,.18) 22%,#000 34%,transparent 92%)}
 @keyframes rain{from{background-position:0 0,0 0}to{background-position:-50px 280px,-80px 340px}}
 .wx-flash{position:absolute;inset:0;background:#fff;opacity:0;animation:flash 9s linear infinite}
 .wx-fog{position:absolute;left:-20%;right:-20%;height:28%;border-radius:50%;filter:blur(30px);background:var(--fogc);animation:clouds 60s ease-in-out infinite alternate}
@@ -201,11 +201,19 @@ td.partial{color:var(--text-3)}
 @media (prefers-color-scheme: light){:root:not([data-theme="dark"]) .wx-star{background:#5d66a3}}
 @media (prefers-reduced-motion: reduce){.wx-bg *{animation:none !important}.wx-flash{display:none}}
 
+/* text that sits directly on the sky: stronger secondary colours plus a soft halo */
+.top,.status{--on-sky-2:rgba(10,20,40,.80);--on-sky-3:rgba(10,20,40,.68);--halo:0 1px 14px rgba(255,255,255,.55),0 0 2px rgba(255,255,255,.35)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) :is(.top,.status){--on-sky-2:rgba(255,255,255,.88);--on-sky-3:rgba(255,255,255,.72);--halo:0 1px 16px rgba(0,0,0,.45),0 0 2px rgba(0,0,0,.35)}}
+:root[data-theme="dark"] :is(.top,.status){--on-sky-2:rgba(255,255,255,.88);--on-sky-3:rgba(255,255,255,.72);--halo:0 1px 16px rgba(0,0,0,.45),0 0 2px rgba(0,0,0,.35)}
+.brand h1,.status h2{text-shadow:var(--halo)}
+.brand .sub,.status .hello{color:var(--on-sky-3);text-shadow:var(--halo)}
+.status p{color:var(--on-sky-2);text-shadow:var(--halo)}
+
 /* status headline */
 .status{margin:2px 0 18px}
-.status .hello{font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-3);font-weight:500}
+.status .hello{font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--on-sky-3, var(--text-3));font-weight:500}
 .status h2{font-weight:300;font-size:clamp(24px,3.4vw,38px);letter-spacing:-.025em;line-height:1.15;margin:8px 0 6px}
-.status p{margin:0;color:var(--text-2);font-size:14.5px;max-width:760px}
+.status p{margin:0;color:var(--on-sky-2, var(--text-2));font-size:14.5px;max-width:760px}
 .status .rise{animation:rise .6s ease both}
 @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
