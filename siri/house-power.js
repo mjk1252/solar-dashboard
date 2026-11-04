@@ -2,7 +2,7 @@
 // Runs in the Scriptable app (iOS). Your Sunsynk Connect login is stored in the iPhone
 // Keychain the first time you run it; nothing is stored in this file.
 //
-// Siri / Shortcuts: returns a spoken summary as the shortcut result.
+// Siri / Shortcuts: returns a spoken summary as the shortcut result, and in Siri shows a card with the numbers.
 // Widget: shows solar, battery, grid and house, refreshing about every 5 minutes.
 // Pass "reset" as the shortcut parameter (or run it in the app and choose Log out) to clear the saved login.
 
@@ -219,6 +219,8 @@ if (param === "reset") {
     Script.setWidget(buildWidget(s, err));
   } else if (config.runsWithSiri || config.runsFromShortcut) {
     Script.setShortcutOutput(err ? "Sorry, " + err : s.text);
+    // in Siri, also show the numbers as a card (needs "Show When Run" on in the Run Script action)
+    if (config.runsWithSiri && !err) await buildWidget(s, null).presentMedium();
   } else {
     // opened in the Scriptable app: show the result, offer a preview and log out
     const a = new Alert();
