@@ -269,6 +269,21 @@ td.partial{color:var(--text-3)}
 .livebar .tile .ico{position:absolute;right:12px;top:50%;transform:translateY(-50%);opacity:.95}
 @media (max-width: 520px){.livebar .tile .ico{top:auto;bottom:6px;right:8px;transform:scale(.62);transform-origin:bottom right}}
 
+/* where the energy goes */
+.usage3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:6px}
+.tile2{background:var(--surface-2);border-radius:16px;padding:16px;font-size:13.5px;color:var(--text-2)}
+.tile2 .k{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-3);font-weight:500}
+.tile2 .big2{font-size:30px;font-weight:300;letter-spacing:-.02em;color:var(--text);margin:6px 0 2px}
+.tile2 .big2 small{font-size:14px;color:var(--text-3);margin-left:3px}
+.tile2 p{margin:8px 0 0}
+.tile2 b{color:var(--text);font-weight:500}
+.gx{list-style:none;padding:0;margin:10px 0 0;display:grid;gap:6px}
+.gx li{display:flex;justify-content:space-between;gap:8px;font-variant-numeric:tabular-nums}
+.gx .out{color:#d03b3b;font-weight:500}
+.meter{height:8px;border-radius:6px;background:var(--line);overflow:hidden;margin:10px 0 4px;display:flex;gap:2px}
+.meter span{display:block;height:100%}
+@media (max-width: 960px){.usage3{grid-template-columns:1fr}}
+
 /* appliance timing report */
 .timing-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
 .timing-tips{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:4px}
@@ -434,6 +449,17 @@ td.partial{color:var(--text-3)}
       <div class="chart-box tall"><canvas id="hourChart" aria-label="Hourly energy by source"></canvas></div>
     </section>
 
+    <section class="card full" id="usageCard">
+      <div class="eyebrow" id="usageEyebrow">Where the energy goes</div>
+      <h3>Always-on load, nights and geysers</h3>
+      <p class="hint" id="usageHint"></p>
+      <div class="usage3">
+        <div class="tile2" id="baseTile"></div>
+        <div class="tile2" id="nightTile"></div>
+        <div class="tile2" id="geyserTile"></div>
+      </div>
+    </section>
+
     <section class="card full" id="timingCard">
       <div class="timing-head">
         <div>
@@ -529,6 +555,12 @@ td.partial{color:var(--text-3)}
       <small>Total panel size, used to estimate how much solar was available. E.g. 16 × 545 W + 10 × 430 W ≈ 13 kWp.</small></div>
     <div class="field"><label for="face">Panels face</label>
       <div class="in"><select id="face"><option value="north">North</option><option value="ne">North-east</option><option value="nw">North-west</option><option value="east">East</option><option value="west">West</option><option value="flat">Flat</option></select></div></div>
+    <div class="field"><label for="gtimers">Geyser timers</label>
+      <div class="in"><input id="gtimers" type="text" placeholder="e.g. 10:00-17:00, 12:00-15:00"></div>
+      <small>The windows your geyser timers allow heating. Used to spot heating outside them.</small></div>
+    <div class="field"><label for="bprice">Extra battery price</label>
+      <div class="in"><span>R</span><input id="bprice" type="number" step="100" min="0" inputmode="decimal"></div>
+      <small>Optional. Price of a second battery, for a payback estimate.</small></div>
     <div class="field"><label for="cap">Battery size</label>
       <div class="in"><input id="cap" type="number" step="0.01" min="1" inputmode="decimal"><span>kWh</span></div>
       <small>Used for "full in…" and "lasts until…" estimates.</small></div>
@@ -570,18 +602,19 @@ td.partial{color:var(--text-3)}
 <script>
 (() => {
   /* ---------- settings ---------- */
-  const DEF = {rate:5, feed:0, fixed:0, cost:0, reserve:25, cap:16.07, loc:'', kwp:13, face:'north'};
+  const DEF = {rate:5, feed:0, fixed:0, cost:0, reserve:25, cap:16.07, loc:'', kwp:13, face:'north', gtimers:'', bprice:0};
   const store = {
     get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
     set(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
   };
   let S = {...DEF};
   try { Object.assign(S, JSON.parse(store.get('solar.settings') || '{}')); } catch(e){}
-  const ids = ['rate','feed','fixed','cost','reserve','cap','loc','kwp','face'];
+  const ids = ['rate','feed','fixed','cost','reserve','cap','loc','kwp','face','gtimers','bprice'];
   ids.forEach(k => {
     const el = document.getElementById(k);
     el.value = S[k];
     el.addEventListener('input', () => {
+      if (k === 'gtimers') { S.gtimers = el.value; store.set('solar.settings', JSON.stringify(S)); if (DATA) render(); return; }
       if (k === 'face') { S.face = el.value; store.set('solar.settings', JSON.stringify(S)); loadWeather(); return; }
       if (k === 'loc') { S.loc = el.value; store.set('solar.settings', JSON.stringify(S)); clearTimeout(el._t); el._t = setTimeout(() => loadWeather(), 800); return; }
       const v = parseFloat(el.value);
@@ -891,6 +924,7 @@ td.partial{color:var(--text-3)}
     projection(days);
     insights(sel);
     hourChart(sel);
+    usageReport(sel);
     timingReport(sel);
     sunChart(sel);
     socChart(sel);
@@ -1287,8 +1321,10 @@ td.partial{color:var(--text-3)}
 
   /* ---------- projection ---------- */
   function projection(days){
-    let base = days.filter(d => d.complete), note = '';
-    if (!base.length) { base = days; note = ' (rough: no complete day loaded yet)'; }
+    // leave out setup days where the inverter wasn't measuring the house yet (load reads 0)
+    const real = days.filter(d => d.tot.load > 1);
+    let base = real.filter(d => d.complete), note = '';
+    if (!base.length) { base = real.length ? real : days; note = ' (rough: no complete day loaded yet)'; }
     const T = sumTot(base), n = base.length;
     const perDay = {load:T.load/n, buy:T.buy/n, sell:T.sell/n};
     const bill = perDay.buy * 30 * S.rate + S.fixed - perDay.sell * 30 * S.feed;
@@ -1352,6 +1388,101 @@ td.partial{color:var(--text-3)}
     if (spare != null && spare > 2) add('var(--solar)', '☀', 'About <b>' + kwh(spare) + ' kWh</b> of solar went unused because the battery was full and export is off. Heating the geysers in that window would use it for free.');
     if (!items.length) add('var(--text-3)', 'i', 'Load a full day to see patterns.');
     ul.innerHTML = items.slice(0, 6).join('');
+  }
+
+  /* ---------- where the energy goes: always-on load, nights, geysers ---------- */
+  const pctl = (arr, q) => { const v = arr.filter(x => isFinite(x)).sort((a, b) => a - b); if (!v.length) return null; return v[Math.min(v.length - 1, Math.floor(q * v.length))]; };
+  function dayBase(d){
+    // always-on load: the low end (10th percentile) of the house's draw between midnight and 05:00, in W
+    const night = d.rows.filter(r => r.t.getHours() < 5 && r.load > 0).map(r => r.load);
+    return night.length >= 12 ? pctl(night, 0.1) : null;
+  }
+  function parseWindows(str){
+    return String(str || '').split(/[,;]/).map(x => x.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?$/)).filter(Boolean)
+      .map(m => [+m[1] * 60 + +(m[2] || 0), +m[3] * 60 + +(m[4] || 0)]);
+  }
+  function heatEvents(d, baseW){
+    // big sustained steps above the always-on load (≥2.2 kW for 15+ min): almost always a geyser
+    const out = [], base = (baseW || 600) + 300;
+    let cur = null;
+    d.rows.forEach((r, i) => {
+      const nx = d.rows[i + 1], dtH = nx ? Math.min((nx.t - r.t) / 3.6e6, 0.25) : 5 / 60;
+      const ex = r.load - base;
+      if (ex >= 2200) {
+        if (cur && (r.t - cur.end) <= 11 * 60000) { cur.end = r.t; cur.kwh += ex * dtH / 1000; cur.peak = Math.max(cur.peak, r.load); cur.n++; }
+        else { if (cur) out.push(cur); cur = {start:r.t, end:r.t, kwh:ex * dtH / 1000, peak:r.load, n:1}; }
+      }
+    });
+    if (cur) out.push(cur);
+    return out.filter(e => e.n >= 3).map(e => ({...e, end:new Date(+e.end + 5 * 60000)}));
+  }
+  function usageReport(sel){
+    const withRows = sel.filter(d => d.rows.length > 20 && d.tot.load > 1);
+    const card = document.getElementById('usageCard');
+    if (!withRows.length) {
+      document.getElementById('usageHint').textContent = LIVE.token ? 'No 5-minute detail for this period yet. Pick Today or Yesterday, or use "Analyse last 14 days" below.' : 'Load an Excel export to see this.';
+      ['baseTile', 'nightTile', 'geyserTile'].forEach(id => document.getElementById(id).innerHTML = '');
+      return;
+    }
+    const n = withRows.length;
+    document.getElementById('usageEyebrow').textContent = 'Where the energy goes · ' + n + ' day' + (n > 1 ? 's' : '');
+    document.getElementById('usageHint').textContent = n < 3 ? 'Based on ' + n + ' day' + (n > 1 ? 's' : '') + '. Pick Last 7 days (after "Analyse last 14 days") for steadier averages.' : 'Averages across the days with 5-minute detail.';
+
+    // --- always-on load ---
+    const bases = withRows.map(dayBase).filter(v => v != null);
+    const baseW = bases.length ? bases.reduce((a, b) => a + b, 0) / bases.length : null;
+    const useAvg = withRows.filter(d => d.complete).reduce((a, d) => a + d.tot.load, 0) / Math.max(1, withRows.filter(d => d.complete).length);
+    if (baseW != null) {
+      const kwhDay = baseW * 24 / 1000, share = useAvg > 0 ? kwhDay / useAvg : null;
+      document.getElementById('baseTile').innerHTML =
+        '<div class="k">Always-on load</div><div class="big2">' + (baseW / 1000).toFixed(2) + '<small>kW</small></div>' +
+        '<div>The house never really drops below this, even at 03:00.</div>' +
+        '<p><b>' + kwh(kwhDay) + ' kWh a day</b>' + (share ? ', about <b>' + pct(share) + '</b> of everything the house uses' : '') +
+        '. If that all came from the grid it would cost about <b>' + rand(kwhDay * 30 * S.rate) + ' a month</b>.</p>' +
+        '<p>Usual suspects: fridges and freezers (100–200 W each on average), always-on PCs and consoles, Wi-Fi, pumps. Every 100 W less saves about ' + rand(0.1 * 24 * 30 * S.rate) + ' a month.</p>';
+    } else document.getElementById('baseTile').innerHTML = '<div class="k">Always-on load</div><p>Needs a night\'s worth of readings (00:00–05:00).</p>';
+
+    // --- nights vs battery ---
+    const full = withRows.filter(d => d.complete);
+    const nightDays = full.length ? full : withRows;
+    const nightSum = (d, f) => d.hourly.reduce((a, h, i) => a + (i < 6 || i >= 18 ? f(h) : 0), 0);
+    const nightUse = nightDays.reduce((a, d) => a + nightSum(d, h => h.solar + h.batt + h.grid), 0) / nightDays.length;
+    const nightGrid = nightDays.reduce((a, d) => a + nightSum(d, h => h.grid), 0) / nightDays.length;
+    const usable = (S.cap || 16.07) * (100 - (S.reserve || 25)) / 100;
+    const spare = spareSolar(withRows), sparePerDay = spare != null ? spare / n : null;
+    // a second battery only helps as far as there's spare solar to fill it
+    const shift = Math.max(0, Math.min(nightGrid, usable, sparePerDay != null ? sparePerDay + 1 : usable)) * 0.92;
+    const monthly = shift * 30 * S.rate;
+    const fill = Math.min(1, usable / Math.max(nightUse, 0.1));
+    document.getElementById('nightTile').innerHTML =
+      '<div class="k">Nights vs battery</div><div class="big2">' + kwh(nightUse) + '<small>kWh a night</small></div>' +
+      '<div>18:00–06:00. Your battery gives about <b>' + kwh(usable) + ' kWh</b> before the ' + (S.reserve || 25) + '% reserve.</div>' +
+      '<div class="meter"><span style="width:' + (fill * 100).toFixed(1) + '%;background:var(--battery)"></span><span style="flex:1;background:var(--grid)"></span></div>' +
+      '<div style="font-size:12px;color:var(--text-3)">battery ' + pct(Math.min(1, (nightUse - nightGrid) / Math.max(nightUse, .1))) + ' · grid ' + pct(nightGrid / Math.max(nightUse, .1)) + ' of the night</div>' +
+      (nightGrid > 1
+        ? '<p>The grid covers about <b>' + kwh(nightGrid) + ' kWh</b> a night. A second ' + (S.cap || 16.07) + ' kWh battery could shift about <b>' + kwh(shift) + ' kWh</b> of that' +
+          (sparePerDay != null && sparePerDay + 1 < Math.min(nightGrid, usable) ? ' (limited by how much spare solar there is to fill it)' : '') +
+          ', roughly <b>' + rand(monthly) + ' a month</b>' + (S.bprice > 0 && monthly > 0 ? ', paying back in about <b>' + (S.bprice / (monthly * 12)).toFixed(1) + ' years</b>' : '') + '.</p>' +
+          '<p>Moving loads into the day (geysers, washing) shrinks the night first, and is free.</p>'
+        : '<p>The battery is covering your nights. A second one wouldn\'t add much.</p>');
+
+    // --- geysers / big heating loads ---
+    const wins = parseWindows(S.gtimers);
+    const inWin = t => { const m = t.getHours() * 60 + t.getMinutes(); return wins.some(([a, b]) => m >= a && m < b); };
+    let all = [];
+    withRows.forEach(d => { const b = dayBase(d); heatEvents(d, b).forEach(e => all.push({...e, key:d.key, outside: wins.length ? !inWin(e.start) : false})); });
+    const totK = all.reduce((a, e) => a + e.kwh, 0) / n, outK = all.filter(e => e.outside).reduce((a, e) => a + e.kwh, 0) / n;
+    const list = all.slice(-8).reverse().map(e =>
+      '<li><span>' + (n > 1 ? niceDay(e.key).replace(/^\w+, /, '') + ' · ' : '') + hm(e.start) + '–' + hm(e.end) + (e.outside ? ' <span class="out">outside timers</span>' : '') + '</span>' +
+      '<span>' + kwh(e.kwh) + ' kWh · ' + (e.peak / 1000).toFixed(1) + ' kW</span></li>').join('');
+    document.getElementById('geyserTile').innerHTML =
+      '<div class="k">Geysers &amp; heavy heating</div><div class="big2">' + kwh(totK) + '<small>kWh a day</small></div>' +
+      '<div>Big sustained loads of 2.2 kW+ for 15 min or more, almost always a geyser' + (all.length ? '' : '. None found yet') + '.</div>' +
+      (wins.length
+        ? (outK > 0.3 ? '<p><b>' + kwh(outK) + ' kWh a day</b> heats outside your timer windows (' + S.gtimers + '), about <b>' + rand(outK * 30 * S.rate) + ' a month</b>. That\'s probably the geyser without a timer.</p>'
+                      : '<p>Everything heats inside your timer windows (' + S.gtimers + '). Nice.</p>')
+        : '<p>Add your geyser timer windows under Rates &amp; costs to see what heats outside them.</p>') +
+      (list ? '<ul class="gx">' + list + '</ul>' : '');
   }
 
   /* ---------- appliance timing report ---------- */
@@ -1619,7 +1750,8 @@ td.partial{color:var(--text-3)}
     const head = '<tr><th>Day</th><th>Solar</th><th>House</th><th>Grid</th><th>Batt in</th><th>Batt out</th><th>Self-powered</th><th>Grid cost</th><th>Saved</th></tr>';
     const rows = days.map(d => {
       const t = d.tot, s = t.load ? (t.load - t.buy)/t.load : 0;
-      return '<tr><td' + (d.complete ? '' : ' class="partial"') + '>' + niceDay(d.key) + (d.complete ? '' : (d.last ? ' (to ' + hm(d.last) + ')' : ' (so far)')) + '</td>' +
+      const setup = d.tot.load <= 1;
+      return '<tr><td' + (d.complete && !setup ? '' : ' class="partial"') + '>' + niceDay(d.key) + (setup ? ' (setup, no house data)' : d.complete ? '' : (d.last ? ' (to ' + hm(d.last) + ')' : ' (so far)')) + '</td>' +
         '<td>' + kwh(t.pv) + '</td><td>' + kwh(t.load) + '</td><td>' + kwh(t.buy) + '</td><td>' + kwh(t.chg) + '</td><td>' + kwh(t.dis) + '</td>' +
         '<td>' + pct(s) + '</td><td>' + rand(t.buy*S.rate) + '</td><td>' + rand((t.load-t.buy)*S.rate + t.sell*S.feed) + '</td></tr>';
     });
