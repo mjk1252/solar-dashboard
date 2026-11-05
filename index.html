@@ -345,10 +345,81 @@ td.partial{color:var(--text-3)}
   .flow svg{margin:4px -8px 0;width:calc(100% + 16px)}
   .status h2{font-size:24px}
 }
+
+/* guidance strip */
+.gd-row{display:grid;grid-template-columns:72px 1fr;gap:10px;align-items:center;margin-bottom:5px;font-size:12px;color:var(--text-3)}
+.gd-strip{display:grid;grid-template-columns:repeat(24,1fr);gap:2px}
+.gd{display:inline-block;height:16px;border-radius:3px;background:var(--surface-2)}
+.gd.go{background:var(--good)}.gd.fill{background:#e3a008}.gd.batt{background:var(--text-3);opacity:.45}.gd.grid{background:#d03b3b}.gd.past{background:var(--surface-2);opacity:.5}
+.legend i.gd{width:10px;height:10px}
+.gd-axis{display:flex;justify-content:space-between;margin-left:82px;font-size:11px;color:var(--text-3)}
+#guidance{margin:0 0 14px}
+.grid2 > *,.hero > *{min-width:0}
+.gd-strip{min-width:0}
+.grid2 > .card.col{display:flex;flex-direction:column}
+.grid2 > .card.col .chart-box.grow{flex:1;min-height:240px}
+body.wall .flow svg{max-height:60vh}
+#calendar .legend i{margin:0 1px !important}
+/* sankey */
+#sankey svg{width:100%;height:auto;display:block}
+.sk-l{fill:var(--text);font-size:13px;font-weight:500}
+.sk-v{fill:var(--text-3);font-size:11.5px}
+/* health */
+.health{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:6px}
+.tile2.warn{box-shadow:inset 0 0 0 1.5px #d03b3b}
+@media (max-width: 960px){.health{grid-template-columns:1fr 1fr}}
+@media (max-width: 520px){.health{grid-template-columns:1fr}}
+table.mini{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+table.mini th{font-weight:500;color:var(--text-3);text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:6px 8px;border-bottom:1px solid var(--line)}
+table.mini td{padding:8px;border-bottom:1px solid var(--line);color:var(--text)}
+#stringsBox p{font-size:13.5px;color:var(--text-2);margin:10px 0 0}
+#stringsBox b{color:var(--text);font-weight:500}
+/* calendar */
+.cal-wrap{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:24px;align-items:start}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-h{font-size:11px;color:var(--text-3);text-align:center}
+.cal-c{aspect-ratio:1.25;border-radius:8px;padding:5px 6px;font-size:10.5px;display:flex;flex-direction:column;justify-content:space-between;background:var(--surface-2)}
+.cal-c b{font-weight:500;font-size:11px}
+.cal-c span{opacity:.85}
+.cal-c.none{color:var(--text-3);opacity:.6}.cal-c.empty{background:none}
+.recs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rec{background:var(--surface-2);border-radius:14px;padding:12px 14px}
+.rec .k{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);font-weight:500}
+.rec .v{font-size:22px;font-weight:300;margin:4px 0 2px}
+.rec .l{font-size:12px;color:var(--text-3)}
+@media (max-width: 760px){.cal-wrap{grid-template-columns:1fr}.cal-c span{display:none}}
+/* compare arrows, ring, sun arc, stale */
+.kpi .cmp{font-size:12px;color:var(--text-3);margin-top:6px}
+.kpi .cmp.good{color:var(--good)}.kpi .cmp.bad{color:#d03b3b}
+.ringstat{display:flex;gap:10px;align-items:center}
+.ringstat svg{flex:none}
+#selfRing{transition:stroke-dasharray .7s ease}
+#sunArc svg{width:100%;max-width:340px;height:auto;display:block;margin:0 auto 10px}
+.stale{color:#d03b3b}
+.card-actions{display:flex;gap:8px;flex-wrap:wrap}
+/* wall mode */
+#wallExit{position:fixed;top:14px;right:14px;z-index:50;display:none}
+body.wall #wallExit{display:inline-flex}
+body.wall .top,body.wall .periods,body.wall .hero .money{display:none}
+body.wall #dash > :not(.status):not(.hero):not(.kpis):not(.livebar){display:none}
+body.wall .hero{grid-template-columns:1fr}
+body.wall .status h2{font-size:clamp(28px,4vw,46px)}
+body.wall .kpi .v{font-size:clamp(30px,3.6vw,48px)}
+body.wall .wrap{max-width:1400px;padding-top:28px}
+/* print / PDF report */
+@media print{
+  .wx-bg,.top .actions,.periods,#wallExit,.timing-head .btn,.card-actions,.settings,.flow{display:none !important}
+  body{background:#fff !important;color:#111}
+  .card{background:#fff !important;border:1px solid #ddd !important;box-shadow:none !important;backdrop-filter:none !important;break-inside:avoid}
+  .hero{grid-template-columns:1fr !important}
+  .status h2,.status p,.status .hello{color:#111 !important;text-shadow:none !important}
+  .wrap{max-width:none;padding:0}
+}
 </style>
 </head>
 <body>
 <div class="wx-bg" id="wxbg" aria-hidden="true"></div>
+<button id="wallExit" type="button" class="btn">Exit wall mode</button>
 <div class="wrap">
   <header class="top">
     <div class="brand">
@@ -360,6 +431,7 @@ td.partial{color:var(--text-3)}
       <input type="file" id="file" accept=".xlsx,.xls,.csv" multiple>
       <button id="liveBtn" type="button">Connect Sunsynk</button>
       <button id="openSettings" type="button">Rates &amp; costs</button>
+      <button id="wallBtn" type="button" title="Wall display mode (full screen, keeps the screen on)">Wall</button>
       <button id="themeBtn" type="button" aria-label="Toggle light or dark theme">◐</button>
       <button id="clearBtn" type="button" class="hidden">Clear</button>
     </div>
@@ -414,7 +486,7 @@ td.partial{color:var(--text-3)}
           <div class="stat"><div class="v" id="paid">R0</div><div class="l">Paid for grid power</div></div>
           <div class="stat"><div class="v" id="earned">R0</div><div class="l" id="earnedL">Earned from export</div></div>
           <div class="stat"><div class="v" id="without">R0</div><div class="l">Would have paid without solar</div></div>
-          <div class="stat"><div class="v" id="selfpct">0%</div><div class="l">Self-powered</div></div>
+          <div class="stat ringstat"><svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="18" fill="none" stroke="var(--line)" stroke-width="5"/><circle id="selfRing" cx="22" cy="22" r="18" fill="none" stroke="var(--good)" stroke-width="5" stroke-linecap="round" transform="rotate(-90 22 22)" stroke-dasharray="0 200"/></svg><div><div class="v" id="selfpct">0%</div><div class="l">Self-powered</div><div class="l" id="offsetL" style="font-size:11.5px"></div></div></div>
         </div>
       </div>
     </section>
@@ -457,6 +529,26 @@ td.partial{color:var(--text-3)}
       <div class="chart-box tall"><canvas id="hourChart" aria-label="Hourly energy by source"></canvas></div>
     </section>
 
+    <section class="card full" id="powerCard">
+      <div class="eyebrow">Power through the day</div>
+      <h3>Every flow on one scale</h3>
+      <p class="hint">kW. Above the line: supplying the house (solar, battery discharging, grid importing). Below: battery charging or exporting. Hover or press and hold to read every flow at that moment. Gaps are missing readings.</p>
+      <div class="legend" style="margin-bottom:10px">
+        <span><i style="background:var(--solar)"></i>Solar</span>
+        <span><i style="background:var(--battery)"></i>Battery</span>
+        <span><i style="background:var(--grid)"></i>Grid</span>
+        <span><i style="background:var(--text)"></i>House</span>
+      </div>
+      <div class="chart-box tall"><canvas id="powerChart" aria-label="Power flows through the day"></canvas></div>
+    </section>
+
+    <section class="card full">
+      <div class="eyebrow">Energy map</div>
+      <h3 id="sankeyTitle">Where the energy went</h3>
+      <p class="hint">Band width is kWh. "Held back" is solar the panels could have made while the battery was full and export is off.</p>
+      <div id="sankey"></div>
+    </section>
+
     <section class="card full" id="usageCard">
       <div class="eyebrow" id="usageEyebrow">Where the energy goes</div>
       <h3>Always-on load, nights and geysers</h3>
@@ -488,11 +580,21 @@ td.partial{color:var(--text-3)}
       <div class="timeline" id="timeline" role="img" aria-label="Daily battery and spare solar timeline"></div>
     </section>
 
+    <section class="card full" id="healthCard">
+      <div class="eyebrow">System health</div>
+      <h3>Battery, backup and grid outages</h3>
+      <p class="hint">Worked out from the readings. Watch these over months rather than days.</p>
+      <div class="health" id="healthGrid"></div>
+      <div class="eyebrow" style="margin:22px 0 8px">Solar inputs (MPPT strings)</div>
+      <div id="stringsBox"></div>
+    </section>
+
     <section class="grid2">
       <div class="card">
         <div class="eyebrow">Peak sun</div>
         <h3>Solar production</h3>
         <p class="hint" id="sunHint">Solar power through the day.</p>
+        <div id="sunArc"></div>
         <div class="sun-facts sun4">
           <div><div class="v" id="sunPeak">-</div><div class="l" id="sunPeakL">peak output</div></div>
           <div><div class="v" id="sunPeakAt">-</div><div class="l">peak time</div></div>
@@ -500,10 +602,11 @@ td.partial{color:var(--text-3)}
           <div><div class="v" id="sunSpare">-</div><div class="l" id="sunSpareL">spare solar</div></div>
         </div>
         <div class="forecast" id="forecast"></div>
+        <div id="guidance"></div>
         <div class="legend" id="sunLegend" style="margin-bottom:8px"></div>
         <div class="chart-box"><canvas id="sunChart" aria-label="Solar power curve"></canvas></div>
       </div>
-      <div class="card">
+      <div class="card col">
         <div class="eyebrow">Battery</div>
         <h3>Battery level</h3>
         <p class="hint" id="socHint">State of charge over time.</p>
@@ -512,8 +615,15 @@ td.partial{color:var(--text-3)}
           <div><div class="v" id="socEmpty">-</div><div class="l" id="socEmptyL">hit reserve at</div></div>
           <div><div class="v" id="socFull">-</div><div class="l">full at</div></div>
         </div>
-        <div class="chart-box"><canvas id="socChart" aria-label="Battery state of charge"></canvas></div>
+        <div class="chart-box grow"><canvas id="socChart" aria-label="Battery state of charge"></canvas></div>
       </div>
+    </section>
+
+    <section class="card full" id="calCard">
+      <div class="eyebrow">Calendar</div>
+      <h3>Self-powered days and records</h3>
+      <p class="hint">Each day coloured by how much of the house ran on its own power. Hover for details.</p>
+      <div id="calendar"></div>
     </section>
 
     <section class="card full" id="dailyCard">
@@ -530,8 +640,9 @@ td.partial{color:var(--text-3)}
 
     <section class="card full">
       <div class="eyebrow">Table</div>
-      <h3>All figures</h3>
-      <p class="hint">Daily totals from the inverter's own counters. Greyed rows are incomplete days.</p>
+      <div class="timing-head"><h3 style="margin:0">All figures</h3>
+        <div class="card-actions"><button type="button" class="btn" id="printBtn">Print / save PDF report</button><button type="button" class="btn" id="shareBtn">Share image</button></div></div>
+      <p class="hint">Daily totals from the inverter's own counters. Greyed rows are incomplete days; "gap" marks missing readings.</p>
       <div class="tbl-wrap"><table id="tbl"></table></div>
     </section>
 
@@ -570,6 +681,12 @@ td.partial{color:var(--text-3)}
     <div class="field"><label for="bprice">Extra battery price</label>
       <div class="in"><span>R</span><input id="bprice" type="number" step="100" min="0" inputmode="decimal"></div>
       <small>Optional. Price of a second battery, for a payback estimate.</small></div>
+    <div class="field"><label for="strings">String sizes</label>
+      <div class="in"><input id="strings" type="text" placeholder="e.g. 4.3, 4.36, 4.36"><span>kWp</span></div>
+      <small>Optional. Panel size on PV1, PV2, PV3, to compare the inputs fairly.</small></div>
+    <div class="field"><label>Alerts</label>
+      <button type="button" class="btn" id="alertBtn">Turn on alerts</button>
+      <small id="alertState">Battery full with spare solar, unexpected grid use, battery won't last the night, battery too hot. Only while this page is open.</small></div>
     <div class="field"><label for="cap">Battery size</label>
       <div class="in"><input id="cap" type="number" step="0.01" min="1" inputmode="decimal"><span>kWh</span></div>
       <small>Used for "full in…" and "lasts until…" estimates.</small></div>
@@ -611,19 +728,19 @@ td.partial{color:var(--text-3)}
 <script>
 (() => {
   /* ---------- settings ---------- */
-  const DEF = {rate:5, feed:0, fixed:0, cost:0, reserve:25, cap:16.07, loc:'', kwp:13, face:'north', gtimers:'', bprice:0};
+  const DEF = {rate:5, feed:0, fixed:0, cost:0, reserve:25, cap:16.07, loc:'', kwp:13, face:'north', gtimers:'', bprice:0, strings:'', alerts:false};
   const store = {
     get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
     set(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
   };
   let S = {...DEF};
   try { Object.assign(S, JSON.parse(store.get('solar.settings') || '{}')); } catch(e){}
-  const ids = ['rate','feed','fixed','cost','reserve','cap','loc','kwp','face','gtimers','bprice'];
+  const ids = ['rate','feed','fixed','cost','reserve','cap','loc','kwp','face','gtimers','bprice','strings'];
   ids.forEach(k => {
     const el = document.getElementById(k);
     el.value = S[k];
     el.addEventListener('input', () => {
-      if (k === 'gtimers') { S.gtimers = el.value; store.set('solar.settings', JSON.stringify(S)); if (DATA) render(); return; }
+      if (k === 'gtimers' || k === 'strings') { S[k] = el.value; store.set('solar.settings', JSON.stringify(S)); if (DATA) render(); return; }
       if (k === 'face') { S.face = el.value; store.set('solar.settings', JSON.stringify(S)); loadWeather(); return; }
       if (k === 'loc') { S.loc = el.value; store.set('solar.settings', JSON.stringify(S)); clearTimeout(el._t); el._t = setTimeout(() => loadWeather(), 800); return; }
       const v = parseFloat(el.value);
@@ -679,6 +796,9 @@ td.partial{color:var(--text-3)}
     battP:   /^battery output power\(w\)/i,
     upsP:    /^ups load total power/i,
     loadP:   /^load side total power/i,
+    battT:   /^battery temperature/i,
+    gridV:   /^grid side voltage l1/i,
+    igbt:    /^igbt temperature/i,
   };
   const PVCOL = /^pv\d+ input power\(w\)/i;
   const clean = s => String(s ?? '').replace(/\/[\d\-]+\s*$/, '').trim();
@@ -720,6 +840,8 @@ td.partial{color:var(--text-3)}
         grid: num(r, idx.gridP), batt: num(r, idx.battP),
         load: Math.max(isFinite(ups) ? ups : 0, isFinite(ld) ? ld : 0),
         pv: pvIdx.reduce((s, i) => s + (num(r, i) || 0), 0),
+        pvs: pvIdx.length ? pvIdx.map(i => num(r, i)) : null,
+        battT: num(r, idx.battT), gridV: num(r, idx.gridV), igbt: num(r, idx.igbt),
       });
     }
     return {plant, rows: out};
@@ -927,6 +1049,8 @@ td.partial{color:var(--text-3)}
     setNum('kChg', T.chg, kf);
     setNum('kDis', T.dis, kf);
 
+    calibrateSolar();
+    simulateBattery();
     drawFlow(T, F, n);
     renderLive();
     renderStatus(T, sel);
@@ -939,6 +1063,7 @@ td.partial{color:var(--text-3)}
     socChart(sel);
     dayChart(days);
     table(days);
+    renderExtras(T, F, sel, days);
   }
 
   /* ---------- weather (Open-Meteo, no key; only a rounded location is sent) ---------- */
@@ -982,7 +1107,7 @@ td.partial{color:var(--text-3)}
   // estimated solar the panels could make at time t (kW), from modelled sunlight on the panel.
   // Open-Meteo hourly radiation is the average of the hour *before* the timestamp, so we
   // interpolate between hour mid-points.
-  function availKw(t){
+  function availKw(t, raw){
     if (!WX.gti || !WX.gti.size || !(S.kwp > 0)) return null;
     const x = t.getHours() + t.getMinutes() / 60 - 0.5, j0 = Math.floor(x), fr = x - j0;
     const at = j => { // value labelled hour j+1 on this day (mid-point j+0.5)
@@ -992,7 +1117,8 @@ td.partial{color:var(--text-3)}
     const a = at(j0), b = at(j0 + 1);
     if (a == null && b == null) return null;
     const g = (a ?? b) * (1 - fr) + (b ?? a) * fr;
-    return Math.min(S.kwp * g / 1000 * 0.8, S.kwp);   // 0.8 ≈ system losses (heat, wiring, inverter)
+    const k = Math.min(S.kwp * g / 1000 * 0.8, S.kwp);   // 0.8 ≈ system losses (heat, wiring, inverter)
+    return raw ? k : Math.min(k * (WX.pf || 1), S.kwp);   // pf: fitted from this system's own unconstrained output
   }
   function sunTimes(){
     const d = WX.data, f = v => { const t = v && toDate(v); return t ? t.getHours() + t.getMinutes() / 60 : null; };
@@ -1122,6 +1248,7 @@ td.partial{color:var(--text-3)}
       if (sel.length === 1) { const ev = batteryEvents(sel[0]); if (ev.emptyAt) extra = ' The battery carried the evening until ' + hm(ev.emptyAt) + '.'; else if (ev.minSoc != null && ev.minSoc > res + 3) extra = ' The battery never dropped below ' + ev.minSoc + '%.'; }
       sub = 'Saved ' + rand((T.load - T.buy) * S.rate) + '. Solar made ' + kwh(T.pv) + ' kWh and the grid supplied ' + kwh(T.buy) + ' kWh.' + extra;
     }
+    if (NOW && (hr >= 15 || hr < 6 || NOW.batt === 'discharging')) sub += projectionSentence();
     setText('headline', head);
     setText('subline', sub);
   }
@@ -1779,10 +1906,26 @@ td.partial{color:var(--text-3)}
     o.scales.y.ticks.callback = v => v + '%';
     o.plugins.tooltip.callbacks = {title: it => { const d = new Date(it[0].parsed.x); return (multi ? niceDay(dayKey(d)) + ' ' : '') + hm(d); }, label: c => ' Battery: ' + c.parsed.y + '%'};
     const bc = css('--battery');
+    // forward projection (today only, live): expected line plus a worst-case band, out to tomorrow morning
+    const proj = !multi && isTodayView() && PROJ ? PROJ : null;
+    let pExp = [], pWorst = [];
+    if (proj) {
+      const lim = +proj.sunrise + 3 * 3600000;
+      const startPt = pts.length ? [{x:+pts[pts.length-1].x, y:pts[pts.length-1].y}] : [];
+      pExp = startPt.concat(proj.exp.filter(p => p.t <= lim).map(p => ({x:p.t, y:Math.round(p.soc * 10) / 10})));
+      pWorst = startPt.concat(proj.worst.filter(p => p.t <= lim).map(p => ({x:p.t, y:Math.round(p.soc * 10) / 10})));
+      o.scales.x.max = lim;
+      o.scales.x.ticks.callback = v => { const d = new Date(v); return (dayKey(d) !== todayKey() && d.getHours() < 2 ? 'Tomorrow ' : '') + hm(d); };
+      document.getElementById('socHint').textContent = 'Battery state of charge today, then the projection to tomorrow morning: dashed is expected, the shaded band reaches down to a worst case (heavier use and 40% less sun). Based on your last ' + proj.days + ' day' + (proj.days > 1 ? 's' : '') + ' of use and the solar forecast.';
+    }
+    const resEnd = proj ? o.scales.x.max : pts.length ? +pts[pts.length-1].x : null;
     put('socChart', {type:'line', data:{datasets:[
       {label:'Battery', data:pts.map(p => ({x:+p.x, y:p.y})), borderColor:bc, backgroundColor:bc + '26', fill:true, tension:.25, pointRadius:0, pointHoverRadius:5, pointHoverBorderColor:css('--surface'), pointHoverBorderWidth:2, borderWidth:2},
-      {label:'Reserve', data: pts.length ? [{x:+pts[0].x, y:S.reserve}, {x:+pts[pts.length-1].x, y:S.reserve}] : [], borderColor:css('--text-3'), borderDash:[4,4], borderWidth:1, pointRadius:0, fill:false},
-    ]}, options:{...o, interaction:{mode:'nearest', axis:'x', intersect:false}, plugins:{...o.plugins, tooltip:{...o.plugins.tooltip, filter:c => c.datasetIndex === 0}}}});
+      {label:'Reserve', data: pts.length ? [{x:+pts[0].x, y:S.reserve}, {x:resEnd, y:S.reserve}] : [], borderColor:css('--text-3'), borderDash:[4,4], borderWidth:1, pointRadius:0, fill:false},
+      {label:'Projected', data:pExp, borderColor:bc, borderDash:[6,4], borderWidth:2, pointRadius:0, pointHoverRadius:4, fill:false, tension:.25},
+      {label:'Worst case', data:pWorst, borderColor:'transparent', backgroundColor:bc + '1f', pointRadius:0, pointHoverRadius:3, fill:'-1', tension:.25},
+    ]}, options:{...o, interaction:{mode:'nearest', axis:'x', intersect:false}, plugins:{...o.plugins, tooltip:{...o.plugins.tooltip,
+      filter:c => c.datasetIndex !== 1, callbacks:{...o.plugins.tooltip.callbacks, label:c => ' ' + c.dataset.label + ': ' + Math.round(c.parsed.y) + '%'}}}}});
   }
 
   function dayChart(days){
@@ -1809,7 +1952,9 @@ td.partial{color:var(--text-3)}
     const rows = days.map(d => {
       const t = d.tot, s = t.load ? (t.load - t.buy)/t.load : 0;
       const setup = d.tot.load <= 1;
-      return '<tr><td' + (d.complete && !setup ? '' : ' class="partial"') + '>' + niceDay(d.key) + (setup ? ' (setup, no house data)' : d.complete ? '' : (d.last ? ' (to ' + hm(d.last) + ')' : ' (so far)')) + '</td>' +
+      const gap = d.rows.length > 20 ? maxGapMin(d) : 0;
+      return '<tr><td' + (d.complete && !setup ? '' : ' class="partial"') + '>' + niceDay(d.key) + (setup ? ' (setup, no house data)' : d.complete ? '' : (d.last ? ' (to ' + hm(d.last) + ')' : ' (so far)')) +
+        (gap > 20 ? ' <span class="stale" title="Longest stretch without readings">· gap ' + (gap >= 90 ? (gap / 60).toFixed(1) + ' h' : Math.round(gap) + ' min') + '</span>' : '') + '</td>' +
         '<td>' + kwh(t.pv) + '</td><td>' + kwh(t.load) + '</td><td>' + kwh(t.buy) + '</td><td>' + kwh(t.chg) + '</td><td>' + kwh(t.dis) + '</td>' +
         '<td>' + pct(s) + '</td><td>' + rand(t.buy*S.rate) + '</td><td>' + rand((t.load-t.buy)*S.rate + t.sell*S.feed) + '</td></tr>';
     });
@@ -1943,6 +2088,7 @@ td.partial{color:var(--text-3)}
     await liveDay(today);
     await liveDay(yest).catch(() => {});
     await liveFlow().catch(() => {});
+    await liveExtras();
     derive();
   }
 
@@ -1975,7 +2121,7 @@ td.partial{color:var(--text-3)}
       try {
         await liveFlow();
         if (LIVE.tick % 2 !== 0 && DATA) render();
-        if (LIVE.tick % 2 === 0) { await liveMonth(dayKey(new Date()).slice(0, 7)); await liveDay(dayKey(new Date())); derive(); render(); }
+        if (LIVE.tick % 2 === 0) { await liveMonth(dayKey(new Date()).slice(0, 7)); await liveDay(dayKey(new Date())); await liveExtras(); derive(); render(); }
       } catch(e){}
     }, 5 * 60 * 1000);
   }
@@ -2032,7 +2178,7 @@ td.partial{color:var(--text-3)}
     } finally { go.disabled = false; go.textContent = 'Connect'; }
   });
   document.getElementById('conPlant').addEventListener('change', async e => {
-    LIVE.plantId = e.target.value; try { tokenStore()?.setItem('solar.plant', LIVE.plantId); } catch(e){}
+    LIVE.plantId = e.target.value; EXTRA.sn = null; try { tokenStore()?.setItem('solar.plant', LIVE.plantId); } catch(e){}
     RAW = new Map(); DAYTOT = new Map();
     PLANT = (LIVE.plants.find(p => p.id == LIVE.plantId) || {}).name || '';
     try { await liveLoadAll(); render(); } catch(ex){ document.getElementById('conErr').textContent = ex.message; }
@@ -2056,6 +2202,529 @@ td.partial{color:var(--text-3)}
       LIVE.token = s.t; await liveStart();
     } catch(e){ if (LIVE.token) liveLogout(); }
   })();
+
+  /* =====================================================================
+     Planning, health and visual extras
+     ===================================================================== */
+
+  // ---------- extra live readings (inverter serial, battery, strings, grid) ----------
+  const EXTRA = {sn:null, bat:null, inp:null, grid:null, at:null};
+  const pick = (o, keys) => { if (!o) return null; for (const k of keys) { const v = o[k]; if (v != null && v !== '' && isFinite(parseFloat(v))) return parseFloat(v); } return null; };
+  async function liveExtras(){
+    if (!LIVE.token || !LIVE.plantId) return;
+    try {
+      if (!EXTRA.sn) {
+        const inv = await api('/api/v1/plant/' + LIVE.plantId + '/inverters?page=1&limit=10&status=-1&type=-2');
+        const first = inv && inv.infos && inv.infos[0];
+        if (first) EXTRA.sn = first.sn;
+      }
+      if (!EXTRA.sn) return;
+      const sn = EXTRA.sn;
+      const [bat, inp, grid] = await Promise.all([
+        api('/api/v1/inverter/battery/' + sn + '/realtime?sn=' + sn + '&lan=en').catch(() => null),
+        api('/api/v1/inverter/' + sn + '/realtime/input').catch(() => null),
+        api('/api/v1/inverter/grid/' + sn + '/realtime?sn=' + sn).catch(() => null),
+      ]);
+      EXTRA.bat = bat; EXTRA.inp = inp; EXTRA.grid = grid; EXTRA.at = new Date();
+      logGridState();
+    } catch(e){}
+  }
+  const liveBattTemp = () => pick(EXTRA.bat, ['temp', 'batteryTemp', 'bmsTemp', 'temperature']);
+  function liveGridVolts(){
+    const g = EXTRA.grid; if (!g) return null;
+    const vip = g.vip || g.vipList || g.grid;
+    if (Array.isArray(vip) && vip.length) { const v = pick(vip[0], ['volt', 'voltage', 'vac']); if (v != null) return v; }
+    return pick(g, ['vac', 'volt', 'voltage', 'gridVolt']);
+  }
+  function liveStrings(){
+    const inp = EXTRA.inp; if (!inp) return null;
+    const list = inp.pvIV || inp.pvList || inp.pv;
+    if (!Array.isArray(list) || !list.length) return null;
+    return list.map((p, i) => ({n:p.pvNo || i + 1, v:pick(p, ['vpv', 'volt', 'voltage']), a:pick(p, ['ipv', 'current']), w:pick(p, ['ppv', 'power'])}));
+  }
+
+  // ---------- outage log (Excel: grid voltage; live: polled grid voltage, kept on this device) ----------
+  const OUT_KEY = 'solar.outages';
+  const loadOutages = () => { try { return JSON.parse(store.get(OUT_KEY) || '[]'); } catch(e) { return []; } };
+  function logGridState(){
+    const v = liveGridVolts(); if (v == null) return;
+    const list = loadOutages(), last = list[list.length - 1], now = Date.now();
+    if (v < 100) { if (!last || last.end) list.push({start:now, end:null, soc0:nowState() ? nowState().soc : null, src:'live'}); }
+    else if (last && !last.end) { last.end = now; last.soc1 = nowState() ? nowState().soc : null; }
+    store.set(OUT_KEY, JSON.stringify(list.slice(-50)));
+  }
+  function outagesFromRows(days){
+    const out = [];
+    days.forEach(d => {
+      let cur = null;
+      d.rows.forEach(r => {
+        if (!isFinite(r.gridV)) return;
+        const down = isFinite(r.gridV) && r.gridV < 100;
+        if (down && !cur) cur = {start:+r.t, soc0:r.soc};
+        if (!down && cur) { cur.end = +r.t; cur.soc1 = r.soc; out.push(cur); cur = null; }
+      });
+      if (cur) { cur.end = +d.rows[d.rows.length - 1].t; out.push(cur); }
+    });
+    return out.filter(o => o.end - o.start >= 9 * 60000);
+  }
+
+  // ---------- self-calibrating solar estimate ----------
+  // Compares the sunlight model with real output at times the panels weren't being held back
+  // (battery below 95% and charging well under its limit), and fits a correction factor.
+  function calibrateSolar(){
+    WX.pf = 1;
+    if (!DATA || !WX.gti || !WX.gti.size) return;
+    let a = 0, p = 0, n = 0;
+    DATA.days.slice(-14).forEach(d => d.rows.forEach(r => {
+      if (!(r.pv > 0) || !isFinite(r.soc) || r.soc >= 95) return;
+      if (r.batt < -4000) return;                       // charging hard: could be at the battery's limit
+      const raw = availKw(r.t, true); if (raw == null || raw < 1.5) return;
+      a += r.pv / 1000; p += raw; n++;
+    }));
+    if (n >= 24 && p > 0) WX.pf = Math.max(0.6, Math.min(1.3, a / p));
+    WX.pfN = n;
+  }
+
+  // ---------- typical house load by 10-minute slot (recent complete days, recent days weigh more) ----------
+  function loadProfile(){
+    if (!DATA) return null;
+    const days = DATA.days.filter(d => d.complete && d.tot.load > 1 && d.rows.length > 100).slice(-7);
+    if (!days.length) return null;
+    const SL = 144, mean = new Array(SL).fill(0), w = new Array(SL).fill(0), lists = Array.from({length:SL}, () => []);
+    days.forEach((d, di) => {
+      const wt = 1 + di / days.length;                  // newer days count a bit more
+      const sum = new Array(SL).fill(0), cnt = new Array(SL).fill(0);
+      d.rows.forEach(r => { const s = Math.floor((r.t.getHours() * 60 + r.t.getMinutes()) / 10); sum[s] += r.load; cnt[s]++; });
+      for (let i = 0; i < SL; i++) if (cnt[i]) { const v = sum[i] / cnt[i]; mean[i] += v * wt; w[i] += wt; lists[i].push(v); }
+    });
+    const m = mean.map((v, i) => w[i] ? v / w[i] : null);
+    const fill = arr => { let last = arr.find(v => v != null) ?? 800; return arr.map(v => v == null ? last : (last = v)); };
+    const p90 = lists.map(l => { if (!l.length) return null; const s = [...l].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.ceil(0.9 * s.length) - 1)]; });
+    return {mean:fill(m), p90:fill(p90.map((v, i) => v == null ? m[i] : Math.max(v, m[i] * 1.1))), days:days.length};
+  }
+
+  // ---------- battery projection (Predbat-style, 10-minute steps) ----------
+  let PROJ = null;
+  function simulateBattery(){
+    PROJ = null;
+    const N = nowState(); if (!N) return;
+    const prof = loadProfile(); if (!prof) return;
+    const cap = S.cap || 16.07, floor = S.reserve || 25, maxC = 7.8, maxD = 7.5, eff = 0.95;
+    const start = new Date(); start.setSeconds(0, 0); start.setMinutes(start.getMinutes() - start.getMinutes() % 10 + 10);
+    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1, 23, 50);
+    const [rise0, set0] = sunTimes();
+    const run = (worst) => {
+      let soc = N.soc; const out = [];
+      for (let t = new Date(start); t <= end; t = new Date(+t + 600000)) {
+        const s = Math.floor((t.getHours() * 60 + t.getMinutes()) / 10);
+        const load = (worst ? prof.p90[s] : prof.mean[s]) / 1000;
+        const sk = availKw(t), solar = sk == null ? 0 : sk * (worst ? 0.6 : 1);
+        const net = solar - load; let chg = 0, dis = 0, grid = 0, spare = 0;
+        if (net >= 0) {
+          const room = (100 - soc) / 100 * cap;
+          chg = Math.min(net, maxC, room * 6 / eff); soc += chg * eff / 6 / cap * 100; spare = net - chg;
+        } else {
+          const need = -net, avail = Math.max(0, (soc - floor) / 100 * cap) * 6 * eff;
+          dis = Math.min(need, maxD, avail); soc -= dis / eff / 6 / cap * 100; grid = need - dis;
+        }
+        soc = Math.max(0, Math.min(100, soc));
+        const hh = t.getHours() + t.getMinutes() / 60;
+        out.push({t:+t, soc, chg, dis, grid, spare, solar, load, nofc: sk == null && hh > rise0 && hh < set0});   // missing forecast only matters in daylight
+      }
+      return out;
+    };
+    const exp = run(false), worst = run(true);
+    const firstGrid = arr => { const p = arr.find(x => x.grid > 0.05 && x.solar < x.load && !x.nofc); return p ? new Date(p.t) : null; };
+    const [rise] = sunTimes();
+    const tomorrow = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1, Math.floor(rise), Math.round((rise % 1) * 60));
+    const sunriseT = new Date() < new Date(new Date().setHours(Math.floor(rise), Math.round((rise % 1) * 60), 0, 0)) ? new Date(new Date().setHours(Math.floor(rise), Math.round((rise % 1) * 60), 0, 0)) : tomorrow;
+    const at = (arr, t) => { let best = arr[0]; arr.forEach(p => { if (Math.abs(p.t - t) < Math.abs(best.t - t)) best = p; }); return best; };
+    const full = exp.find(p => p.soc >= 99.5);
+    PROJ = {exp, worst, reserveAt:firstGrid(exp), reserveAtWorst:firstGrid(worst), sunrise:sunriseT,
+      socSunrise:at(exp, +sunriseT).soc, socSunriseWorst:at(worst, +sunriseT).soc,
+      fullAt: full ? new Date(full.t) : null, days:prof.days, floor};
+  }
+  function projectionSentence(){
+    if (!PROJ) return '';
+    const r = PROJ.reserveAt, rw = PROJ.reserveAtWorst, sr = PROJ.sunrise;
+    if (r && r < sr) return ' Tonight: the battery should reach the ' + PROJ.floor + '% reserve around ' + hm(r) + (rw && rw < r ? ' (worst case ' + hm(rw) + ')' : '') + ', then the grid until sunrise.';
+    return ' Projection: about ' + Math.round(PROJ.socSunrise) + '% at sunrise' + (PROJ.socSunriseWorst < PROJ.socSunrise - 3 ? ' (worst case ' + Math.round(PROJ.socSunriseWorst) + '%)' : '') + '.';
+  }
+  function autonomyHours(){
+    const N = nowState(); if (!N) return null;
+    const prof = loadProfile(), cap = S.cap || 16.07;
+    let kw = N.loadKw;
+    if (prof) { const night = prof.mean.filter((v, i) => i < 36 || i >= 108); kw = night.reduce((a, b) => a + b, 0) / night.length / 1000; }
+    const kwh = Math.max(0, N.soc - 10) / 100 * cap;     // down to the 10% shutdown level
+    return kw > 0.05 ? {h:kwh / kw, kw, kwh} : null;
+  }
+
+  // ---------- guidance strip: when to run things (rest of today + tomorrow) ----------
+  function renderGuidance(){
+    const el = document.getElementById('guidance'); if (!el) return;
+    if (!PROJ) { el.innerHTML = ''; return; }
+    const byDay = {};
+    PROJ.exp.forEach(p => {
+      const d = new Date(p.t), k = dayKey(d), h = d.getHours();
+      (byDay[k] = byDay[k] || {})[h] = (byDay[k][h] || []).concat(p);
+    });
+    const cls = arr => {
+      if (arr.every(p => p.nofc)) return ['past', 'No forecast yet'];
+      const avg = f => arr.reduce((a, p) => a + p[f], 0) / arr.length;
+      if (avg('spare') >= 1.5) return ['go', 'Spare solar: run heavy loads'];
+      if (avg('chg') > 0.3) return ['fill', 'Battery filling: light loads fine'];
+      if (avg('grid') > 0.3) return ['grid', 'Grid likely: avoid heavy loads'];
+      return ['batt', 'On battery'];
+    };
+    let h = '<div class="eyebrow" style="margin:4px 0 8px">Best times to run appliances (forecast)</div>';
+    Object.keys(byDay).slice(0, 2).forEach(k => {
+      const hours = byDay[k];
+      h += '<div class="gd-row"><div class="gd-day">' + (k === todayKey() ? 'Today' : 'Tomorrow') + '</div><div class="gd-strip">';
+      for (let hr = 0; hr < 24; hr++) {
+        if (!hours[hr]) { h += '<span class="gd past" title="' + String(hr).padStart(2, '0') + ':00 (past)"></span>'; continue; }
+        if (hours[hr].every(p => p.nofc)) { h += '<span class="gd past" title="' + String(hr).padStart(2, '0') + ':00 (no forecast yet)"></span>'; continue; }
+        const [c, label] = cls(hours[hr]);
+        h += '<span class="gd ' + c + '" title="' + String(hr).padStart(2, '0') + ':00 · ' + label + '"></span>';
+      }
+      h += '</div></div>';
+    });
+    h += '<div class="gd-axis"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>' +
+         '<div class="legend" style="margin-top:6px"><span><i class="gd go"></i>Spare solar: run heavy loads</span><span><i class="gd fill"></i>Battery filling</span><span><i class="gd batt"></i>On battery</span><span><i class="gd grid"></i>Grid likely</span></div>';
+    el.innerHTML = h;
+  }
+
+  // ---------- data quality ----------
+  function maxGapMin(d){
+    let g = 0; for (let i = 1; i < d.rows.length; i++) g = Math.max(g, (d.rows[i].t - d.rows[i - 1].t) / 60000);
+    return g;
+  }
+  function dataAge(){
+    if (!DATA) return null;
+    const t = DATA.days.find(d => d.key === todayKey());
+    const last = t && t.rows.length ? t.rows[t.rows.length - 1].t : null;
+    return last ? {last, min:(Date.now() - last) / 60000} : null;
+  }
+
+  // ---------- Sankey: where the energy went ----------
+  function renderSankey(T, F, sel){
+    const el = document.getElementById('sankey'); if (!el) return;
+    const spare = spareSolar(sel) || 0;
+    const left = [
+      {k:'solar', label:'Solar', v:F.fromSolar + T.chg + spare, col:'var(--solar)', sub: kwh(T.pv) + ' kWh' + (spare > 0.1 && el.clientWidth >= 520 ? ' + ' + kwh(spare) + ' unused' : '')},
+      {k:'batt', label:'Battery', v:F.fromBatt, col:'var(--battery)'},
+      {k:'grid', label:'Grid', v:F.fromGrid, col:'var(--grid)'},
+    ].filter(n => n.v > 0.05);
+    const right = [
+      {k:'house', label:'House', v:T.load, col:'var(--text-2)'},
+      {k:'charge', label:'Into battery', v:T.chg, col:'var(--battery)'},
+      {k:'spare', label:'Held back', v:spare, col:'var(--text-3)'},
+    ].filter(n => n.v > 0.05);
+    const links = [
+      ['solar', 'house', F.fromSolar, 'var(--solar)'], ['solar', 'charge', T.chg, 'var(--solar)'], ['solar', 'spare', spare, 'var(--solar)'],
+      ['batt', 'house', F.fromBatt, 'var(--battery)'], ['grid', 'house', F.fromGrid, 'var(--grid)'],
+    ].filter(l => l[2] > 0.05 && left.some(n => n.k === l[0]) && right.some(n => n.k === l[1]));
+    const narrow = el.clientWidth > 0 && el.clientWidth < 520;   // phones: a narrower drawing keeps the labels readable
+    const W = narrow ? 360 : 640, H = narrow ? 320 : 300, nodeW = 14, gap = 18, x0 = narrow ? 96 : 150, x1 = W - (narrow ? 96 : 120) - nodeW;
+    const tot = Math.max(left.reduce((a, n) => a + n.v, 0), right.reduce((a, n) => a + n.v, 0), 0.1);
+    const sc = (H - gap * (Math.max(left.length, right.length) - 1)) / tot;
+    const place = (nodes, x) => { let y = 0; nodes.forEach(n => { n.x = x; n.y = y; n.h = Math.max(2, n.v * sc); n.off = 0; y += n.h + gap; }); };
+    place(left, x0); place(right, x1);
+    const L = Object.fromEntries(left.map(n => [n.k, n])), R = Object.fromEntries(right.map(n => [n.k, n]));
+    let svg = '';
+    links.forEach(([a, b, v, col]) => {
+      const s = L[a], t = R[b], th = v * sc;
+      const ya = s.y + s.off + th / 2, yb = t.y + t.off + th / 2; s.off += th; t.off += th;
+      const xa = s.x + nodeW, xb = t.x, mx = (xa + xb) / 2;
+      svg += '<path d="M' + xa + ' ' + ya + ' C ' + mx + ' ' + ya + ', ' + mx + ' ' + yb + ', ' + xb + ' ' + yb + '" style="stroke:' + col + ';stroke-width:' + Math.max(1.5, th).toFixed(1) + 'px;fill:none;opacity:.35"><title>' + kwh(v) + ' kWh</title></path>';
+    });
+    left.forEach(n => svg += '<rect x="' + n.x + '" y="' + n.y + '" width="' + nodeW + '" height="' + n.h + '" rx="3" style="fill:' + n.col + '"/>' +
+      '<text x="' + (n.x - 10) + '" y="' + (n.y + n.h / 2 - 3) + '" text-anchor="end" class="sk-l">' + n.label + '</text>' +
+      '<text x="' + (n.x - 10) + '" y="' + (n.y + n.h / 2 + 13) + '" text-anchor="end" class="sk-v">' + (n.sub || kwh(n.v) + ' kWh') + '</text>');
+    right.forEach(n => svg += '<rect x="' + n.x + '" y="' + n.y + '" width="' + nodeW + '" height="' + n.h + '" rx="3" style="fill:' + n.col + '"/>' +
+      '<text x="' + (n.x + nodeW + 10) + '" y="' + (n.y + n.h / 2 - 3) + '" class="sk-l">' + n.label + '</text>' +
+      '<text x="' + (n.x + nodeW + 10) + '" y="' + (n.y + n.h / 2 + 13) + '" class="sk-v">' + kwh(n.v) + ' kWh</text>');
+    el.innerHTML = '<svg viewBox="-10 -10 ' + (W + 20) + ' ' + (H + 20) + '" role="img" aria-label="Where the energy went">' + svg + '</svg>';
+    document.getElementById('sankeyTitle').textContent = 'Where the energy went · ' + periodLabel();
+  }
+
+  // ---------- signed power chart: one kW scale, press and hold to read every flow ----------
+  function renderDayPower(sel){
+    const card = document.getElementById('powerCard');
+    const d = sel.length === 1 ? sel[0] : null;
+    if (!d || d.rows.length < 20) { card.classList.add('hidden'); return; }
+    card.classList.remove('hidden');
+    const pts = [];
+    d.rows.forEach((r, i) => {
+      const prev = d.rows[i - 1];
+      if (prev && r.t - prev.t > 20 * 60000) pts.push({x:+prev.t + 60000, gap:true});   // show a gap, not a line
+      pts.push({x:+r.t, solar:(r.pv || 0) / 1000, house:(r.load || 0) / 1000, batt:(r.batt || 0) / 1000, grid:(r.grid || 0) / 1000});
+    });
+    const ser = f => pts.map(p => ({x:p.x, y:p.gap ? null : p[f]}));
+    const o = baseOpts();
+    o.scales.x = {type:'linear', grid:{display:false}, border:{color:css('--line')}, min:+new Date(d.key + 'T00:00'), max:+new Date(d.key + 'T23:59'),
+      ticks:{color:css('--text-3'), callback:v => hm(new Date(v))},
+      afterBuildTicks:ax => { const m0 = +new Date(d.key + 'T00:00'); ax.ticks = Array.from({length:8}, (_, i) => ({value:m0 + i * 3 * 3600000})); }};
+    o.scales.y.beginAtZero = false;
+    o.scales.y.title = {display:true, text:'kW (↑ supplying / ↓ charging or exporting)', color:css('--text-3')};
+    o.scales.y.grid = {color:c => c.tick.value === 0 ? css('--text-3') : css('--grid-line')};
+    o.plugins.tooltip.callbacks = {title:it => hm(new Date(it[0].parsed.x)),
+      label:c => { const v = c.parsed.y; if (v == null) return null;
+        const n = c.dataset.label; const dir = n === 'Battery' ? (v >= 0 ? ' discharging' : ' charging') : n === 'Grid' ? (v >= 0 ? ' importing' : ' exporting') : '';
+        return ' ' + n + ': ' + Math.abs(v).toFixed(2) + ' kW' + dir; }};
+    const ds = (label, f, col, fill) => ({label, data:ser(f), borderColor:col, backgroundColor:col + '30', fill, borderWidth:f === 'house' ? 2 : 1.5, pointRadius:0, pointHoverRadius:4, tension:.2, spanGaps:false});
+    put('powerChart', {type:'line', data:{datasets:[
+      ds('Solar', 'solar', css('--solar'), 'origin'), ds('Battery', 'batt', css('--battery'), 'origin'),
+      ds('Grid', 'grid', css('--grid'), 'origin'), ds('House', 'house', css('--text'), false),
+    ]}, options:{...o, interaction:{mode:'index', intersect:false}}});
+  }
+
+  // ---------- battery health, strings, outages, autonomy ----------
+  function batterySegments(d){
+    // long evening discharges: kWh out ÷ SOC drop gives the usable capacity actually seen
+    const segs = []; let cur = null;
+    d.rows.forEach((r, i) => {
+      const nx = d.rows[i + 1], dtH = nx ? Math.min((nx.t - r.t) / 3.6e6, 0.25) : 0;
+      if (r.batt > 150 && isFinite(r.soc)) { if (!cur) cur = {soc0:r.soc, e:0}; cur.e += r.batt * dtH / 1000; cur.soc1 = r.soc; }
+      else if (cur) { if (cur.soc0 - cur.soc1 >= 25) segs.push(cur); cur = null; }
+    });
+    if (cur && cur.soc0 - cur.soc1 >= 25) segs.push(cur);
+    return segs.map(s => s.e / ((s.soc0 - s.soc1) / 100));
+  }
+  function renderHealth(sel){
+    const el = document.getElementById('healthGrid'); if (!el) return;
+    const cap = S.cap || 16.07;
+    const real = DATA.days.filter(d => d.tot.load > 1);
+    const disAll = real.reduce((a, d) => a + d.tot.dis, 0);
+    const cycles = disAll / cap;
+    // round-trip efficiency over the selected days with readings: energy out vs energy in, corrected for the SOC change
+    const rd = sel.filter(d => d.rows.length > 20 && d.tot.load > 1);
+    let eff = null;
+    if (rd.length) {
+      const socs = rd.flatMap(d => d.rows.filter(r => isFinite(r.soc) && r.soc > 0).map(r => r.soc));
+      const chg = rd.reduce((a, d) => a + d.tot.chg, 0), dis = rd.reduce((a, d) => a + d.tot.dis, 0);
+      if (socs.length > 10 && chg > 5) { const dS = (socs[socs.length - 1] - socs[0]) / 100 * cap; const e = (dis + dS) / chg; if (e > 0.5 && e < 1.05) eff = Math.min(e, 1); }
+    }
+    const capEst = DATA.days.flatMap(batterySegments);
+    const capMed = capEst.length ? capEst.sort((a, b) => a - b)[capEst.length >> 1] : null;
+    // temperature
+    const temps = sel.flatMap(d => d.rows.filter(r => isFinite(r.battT) && r.battT > -40).map(r => r.battT));
+    const tNow = liveBattTemp() ?? (temps.length ? temps[temps.length - 1] : null);
+    const tMax = temps.length ? Math.max(...temps) : null;
+    const hot35 = temps.filter(t => t >= 35).length * 5 / 60, hot40 = temps.filter(t => t >= 40).length * 5 / 60;
+    const aut = autonomyHours();
+    const tile = (k, v, sub, warn) => '<div class="tile2' + (warn ? ' warn' : '') + '"><div class="k">' + k + '</div><div class="big2">' + v + '</div><div>' + sub + '</div></div>';
+    let h = '';
+    h += tile('Battery cycles', cycles.toFixed(1) + '<small>full cycles</small>', kwh(disAll) + ' kWh discharged since the first day loaded. About ' + (cycles / 6000 * 100).toFixed(2) + '% of a typical 6,000-cycle rating.');
+    h += tile('Round-trip efficiency', eff != null ? pct(eff) : '-', eff != null ? 'Energy back out for every kWh put in, over ' + rd.length + ' day' + (rd.length > 1 ? 's' : '') + '. 85–95% is normal for LFP plus the inverter.' : 'Needs a few days of 5-minute readings (use "Analyse last 14 days").');
+    h += tile('Usable capacity', capMed != null ? kwh(capMed) + '<small>kWh</small>' : '-', capMed != null ? 'Measured from ' + capEst.length + ' long discharge' + (capEst.length > 1 ? 's' : '') + ' (rated ' + kwh(cap) + ' kWh). Watch this trend over the months; it drops slowly as the battery ages.' : 'Measured from long evening discharges once there are some.');
+    h += tile('Battery temperature', tNow != null ? tNow.toFixed(1) + '<small>°C now</small>' : '-',
+      (tMax != null ? 'Max ' + tMax.toFixed(1) + '°C this period' + (hot35 ? ', ' + hot35.toFixed(1) + ' h at 35°C+' : '') + '. ' : '') +
+      (tNow != null && tNow >= 40 ? '<b>Hot: LFP ages faster above 40°C. Check ventilation.</b>' : 'Ideal below 35°C; above 40°C ages it faster.'), tNow != null && tNow >= 40 || hot40 > 0.5);
+    h += tile('If the grid went down now', aut ? (aut.h >= 1 ? Math.floor(aut.h) + 'h ' + Math.round((aut.h % 1) * 60) + 'm' : Math.round(aut.h * 60) + ' min') : '-',
+      aut ? 'At your usual night load (~' + aut.kw.toFixed(1) + ' kW), using ' + kwh(aut.kwh) + ' kWh down to the 10% shutdown level. Solar would add more in daylight.' : 'Shown when connected live.');
+    // outages
+    const outs = outagesFromRows(sel).concat(loadOutages().filter(o => o.end && sel.some(d => d.key === dayKey(new Date(o.start)))));
+    const fmtD = ms => { const m = Math.round(ms / 60000); return m >= 60 ? Math.floor(m / 60) + 'h ' + (m % 60) + 'm' : m + ' min'; };
+    h += '<div class="tile2"><div class="k">Grid outages</div><div class="big2">' + outs.length + '</div>' +
+      (outs.length ? '<ul class="gx">' + outs.slice(-5).reverse().map(o => '<li><span>' + niceDay(dayKey(new Date(o.start))).replace(/^\w+, /, '') + ' ' + hm(new Date(o.start)) + '</span><span>' + fmtD(o.end - o.start) +
+        (o.soc0 != null && o.soc1 != null ? ' · battery ' + Math.round(o.soc0) + '→' + Math.round(o.soc1) + '%' : '') + '</span></li>').join('') + '</ul>'
+        : '<div>No grid loss found in this period. ' + (LIVE.token ? 'While this page is open it also watches grid voltage live.' : 'Excel exports are checked using grid voltage.') + '</div>') + '</div>';
+    el.innerHTML = h;
+    renderStrings(sel);
+  }
+  function renderStrings(sel){
+    const el = document.getElementById('stringsBox'); if (!el) return;
+    const sizes = String(S.strings || '').split(/[,;\s]+/).map(parseFloat).filter(v => v > 0);
+    const live = isTodayView() ? liveStrings() : null;
+    // per-input kWh from Excel readings, and kWh only from times the panels weren't held back
+    const per = [0, 0, 0], perFree = [0, 0, 0]; let have = false;
+    sel.forEach(d => d.rows.forEach((r, i) => {
+      if (!r.pvs) return; have = true;
+      const nx = d.rows[i + 1], dtH = nx ? Math.min((nx.t - r.t) / 3.6e6, 0.25) : 5 / 60;
+      const free = isFinite(r.soc) && r.soc < 95 && !(r.batt < -4000);
+      r.pvs.forEach((w, k) => { if (k < 3 && isFinite(w)) { per[k] += w * dtH / 1000; if (free) perFree[k] += w * dtH / 1000; } });
+    }));
+    if (!live && !have) { el.innerHTML = '<div class="hint" style="margin:0">Per-input solar readings come from an Excel export or, when live, from the inverter. Not available for this period.</div>'; return; }
+    const rows = [0, 1, 2].map(k => {
+      const lv = live && live[k];
+      const yld = sizes[k] ? perFree[k] / sizes[k] : null;
+      return {k, lv, kwh:have ? per[k] : null, yld};
+    });
+    const best = Math.max(...rows.map(r => r.yld || 0));
+    let flag = '';
+    rows.forEach(r => { if (r.yld != null && best > 0 && r.yld < best * 0.85) flag += '<p><b>Input ' + (r.k + 1) + ' is ' + Math.round((1 - r.yld / best) * 100) + '% below the best input per kWp</b> at times the panels weren\'t held back. A dip at the same time each day points to shading; a slow decline that recovers after rain points to dirt.</p>'; });
+    const cols = [['Input', r => 'PV' + (r.k + 1) + (sizes[r.k] ? ' · ' + sizes[r.k] + ' kWp' : '')]];
+    if (live) cols.push(['Now', r => r.lv && r.lv.w != null ? (r.lv.w / 1000).toFixed(2) + ' kW' : '-'], ['Volts', r => r.lv && r.lv.v != null ? Math.round(r.lv.v) + ' V' : '-'], ['Amps', r => r.lv && r.lv.a != null ? r.lv.a.toFixed(1) + ' A' : '-']);
+    if (have) cols.push(['kWh this period', r => kwh(r.kwh)]);
+    if (have && sizes.length) cols.push(['kWh per kWp (unconstrained)', r => r.yld != null ? r.yld.toFixed(2) : '-']);
+    el.innerHTML = '<div class="tbl-wrap"><table class="mini"><thead><tr>' + cols.map(c => '<th>' + c[0] + '</th>').join('') + '</tr></thead><tbody>' +
+      rows.map(r => '<tr>' + cols.map(c => '<td>' + c[1](r) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>' +
+      (flag || (sizes.length ? '<p>All inputs are performing within 15% of each other.</p>' : '<p class="hint" style="margin:6px 0 0">Add each input\'s panel size under Rates &amp; costs → String sizes to compare them fairly.</p>')) +
+      '<p class="hint" style="margin:6px 0 0">Solar estimate calibration: ' + (WX.pfN >= 24 ? 'your panels produce about <b>' + Math.round((WX.pf || 1) * 100) + '%</b> of the sunlight model, fitted from ' + Math.round(WX.pfN * 5 / 60) + ' h of unconstrained readings.' : 'not enough unconstrained readings yet, using the default.') + '</p>';
+  }
+
+  // ---------- calendar heatmap, records, streaks ----------
+  const SEQ = ['#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#184f95'];
+  function renderCalendar(days){
+    const el = document.getElementById('calendar'); if (!el) return;
+    const real = days.filter(d => d.tot.load > 1);
+    if (!real.length) { el.innerHTML = ''; return; }
+    const lastKey = real[real.length - 1].key, [y, m] = lastKey.split('-').map(Number);
+    const first = new Date(y, m - 1, 1), nDays = new Date(y, m, 0).getDate(), lead = (first.getDay() + 6) % 7;
+    const byKey = Object.fromEntries(days.map(d => [d.key, d]));
+    let cells = ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(x => '<div class="cal-h">' + x + '</div>').join('') + '<div class="cal-c empty"></div>'.repeat(lead);
+    for (let i = 1; i <= nDays; i++) {
+      const k = y + '-' + String(m).padStart(2, '0') + '-' + String(i).padStart(2, '0'), d = byKey[k];
+      if (!d || d.tot.load <= 1) { cells += '<div class="cal-c none"><b>' + i + '</b></div>'; continue; }
+      const self = (d.tot.load - d.tot.buy) / d.tot.load, step = Math.min(SEQ.length - 1, Math.floor(self * SEQ.length));
+      cells += '<div class="cal-c" style="background:' + SEQ[step] + ';color:' + (step >= 3 ? '#fff' : '#0b0b0b') + '" title="' + niceDay(k) + ': ' + pct(self) + ' self-powered, ' + kwh(d.tot.pv) + ' kWh solar, ' + kwh(d.tot.buy) + ' kWh grid' + (d.complete ? '' : ' (so far)') + '"><b>' + i + '</b><span>' + pct(self) + '</span></div>';
+    }
+    // records & streaks (complete days only)
+    const full = real.filter(d => d.complete);
+    const by = (f, dir) => full.length ? full.reduce((a, d) => (dir > 0 ? f(d) > f(a) : f(d) < f(a)) ? d : a) : null;
+    const selfOf = d => (d.tot.load - d.tot.buy) / d.tot.load;
+    const bestSolar = by(d => d.tot.pv, 1), leastGrid = by(d => d.tot.buy, -1), bestSelf = by(selfOf, 1);
+    let streak = 0; for (let i = full.length - 1; i >= 0; i--) { if (selfOf(full[i]) >= 0.7) streak++; else break; }
+    let longest = 0, run = 0; full.forEach(d => { run = selfOf(d) >= 0.7 ? run + 1 : 0; longest = Math.max(longest, run); });
+    const zero = full.filter(d => d.tot.buy < 0.5).length;
+    const rec = (k, v, d) => '<div class="rec"><div class="k">' + k + '</div><div class="v">' + v + '</div><div class="l">' + (d ? niceDay(d.key) : '') + '</div></div>';
+    el.innerHTML = '<div class="cal-wrap"><div><div class="eyebrow" style="margin-bottom:8px">' + first.toLocaleDateString('en-ZA', {month:'long', year:'numeric'}) + ' · self-powered</div><div class="cal">' + cells + '</div>' +
+      '<div class="legend" style="margin-top:8px"><span>0%</span>' + SEQ.map(c => '<i style="background:' + c + ';margin:0"></i>').join('') + '<span>100%</span></div></div>' +
+      '<div class="recs">' + (full.length ? rec('Best solar day', kwh(bestSolar.tot.pv) + ' kWh', bestSolar) + rec('Least grid', kwh(leastGrid.tot.buy) + ' kWh', leastGrid) + rec('Most self-powered', pct(selfOf(bestSelf)), bestSelf) +
+        rec('Streak ≥70% self-powered', streak + ' day' + (streak === 1 ? '' : 's'), null) + rec('Longest streak', longest + ' day' + (longest === 1 ? '' : 's'), null) + rec('Zero-grid days', String(zero), null)
+        : '<div class="hint">Records start after the first complete day.</div>') + '</div></div>';
+  }
+
+  // ---------- today vs yesterday at the same time ----------
+  function renderCompare(sel){
+    document.querySelectorAll('.kpi .cmp').forEach(e => e.remove());
+    if (PERIOD !== 'today' || !DATA) return;
+    const t = DATA.days.find(d => d.key === todayKey()), y = DATA.days.find(d => d.key === shiftKey(todayKey(), -1));
+    if (!t || !y || !t.rows.length || !y.rows.length) return;
+    const now = new Date(), H = now.getHours(), fr = now.getMinutes() / 60;
+    const upto = (d, f) => d.hourly.reduce((a, h, i) => a + (i < H ? f(h) : i === H ? f(h) * fr : 0), 0);
+    const pairs = [['kSolar', h => h.pv, 1], ['kLoad', h => h.solar + h.batt + h.grid, -1], ['kGrid', h => h.grid, -1]];
+    pairs.forEach(([id, f, good]) => {
+      const a = t.hourly.reduce((s, h) => s + f(h), 0), b = upto(y, f);
+      if (b < 0.3) return;
+      const ch = (a - b) / b, up = ch >= 0, better = up === (good > 0);
+      const el = document.createElement('div'); el.className = 'cmp ' + (Math.abs(ch) < 0.03 ? '' : better ? 'good' : 'bad');
+      el.textContent = (Math.abs(ch) < 0.03 ? '≈ same' : (up ? '▲ ' : '▼ ') + Math.round(Math.abs(ch) * 100) + '%') + ' vs yesterday by now';
+      document.getElementById(id).parentElement.appendChild(el);
+    });
+  }
+
+  // ---------- self-powered ring + solar offset ----------
+  function renderRing(T){
+    const self = T.load ? (T.load - T.buy) / T.load : 0, r = document.getElementById('selfRing');
+    if (r) { const c = 2 * Math.PI * 18; r.style.strokeDasharray = (c * Math.max(0, Math.min(1, self))) + ' ' + c; }
+    const off = document.getElementById('offsetL');
+    if (off) off.textContent = T.load > 0.5 ? 'Solar offset ' + pct(T.pv / T.load) + ' (made ÷ used)' : '';
+  }
+
+  // ---------- sun arc ----------
+  function renderSunArc(sel){
+    const el = document.getElementById('sunArc'); if (!el) return;
+    const [rise, set] = sunTimes(); if (!(set > rise)) { el.innerHTML = ''; return; }
+    const W = 300, H = 120, cx = W / 2, cy = H - 10, R = 120;
+    const pos = h => { const f = Math.max(0, Math.min(1, (h - rise) / (set - rise))), a = Math.PI * (1 - f); return [cx + R * Math.cos(a) * 1.15, cy - R * Math.sin(a) * 0.82]; };
+    const arc = (h0, h1) => { let d = ''; for (let i = 0; i <= 40; i++) { const [x, y] = pos(h0 + (h1 - h0) * i / 40); d += (i ? ' L ' : 'M ') + x.toFixed(1) + ' ' + y.toFixed(1); } return d; };
+    const hh = h => String(Math.floor(h)).padStart(2, '0') + ':' + String(Math.round((h % 1) * 60)).padStart(2, '0');
+    const win = (document.getElementById('sunWindow').textContent || '').match(/(\d{2}):(\d{2})–(\d{2}):(\d{2})/);
+    const now = new Date(), nh = now.getHours() + now.getMinutes() / 60, showSun = isTodayView() && nh >= rise && nh <= set;
+    let svg = '<path d="' + arc(rise, set) + '" fill="none" stroke="var(--line)" stroke-width="3" stroke-dasharray="2 5" stroke-linecap="round"/>';
+    if (win) svg += '<path d="' + arc(+win[1] + win[2] / 60, +win[3] + win[4] / 60) + '" fill="none" stroke="var(--solar)" stroke-width="5" stroke-linecap="round" opacity=".8"><title>Strong-sun window</title></path>';
+    if (showSun) { const [x, y] = pos(nh); svg += '<circle cx="' + x + '" cy="' + y + '" r="14" fill="var(--solar)" opacity=".18"/><circle cx="' + x + '" cy="' + y + '" r="7" fill="var(--solar)"/>'; }
+    svg += '<line x1="0" y1="' + cy + '" x2="' + W + '" y2="' + cy + '" stroke="var(--line)"/>' +
+      '<text x="4" y="' + (cy - 6) + '" class="sk-v">↑ ' + hh(rise) + '</text><text x="' + (W - 4) + '" y="' + (cy - 6) + '" text-anchor="end" class="sk-v">' + hh(set) + ' ↓</text>';
+    el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" aria-label="Sun path today">' + svg + '</svg>';
+  }
+
+  // ---------- alerts while the page is open ----------
+  const ALERT_KEY = 'solar.alerts';
+  function checkAlerts(){
+    if (!S.alerts || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    const N = nowState(); if (!N) return;
+    let last = {}; try { last = JSON.parse(store.get(ALERT_KEY) || '{}'); } catch(e){}
+    const fire = (key, minGapH, title, body) => {
+      if (last[key] && Date.now() - last[key] < minGapH * 3600000) return;
+      try { new Notification(title, {body, tag:key}); } catch(e){}
+      last[key] = Date.now(); store.set(ALERT_KEY, JSON.stringify(last));
+    };
+    const av = availKw(new Date());
+    if (N.soc >= 99 && av != null && av - N.pvKw > 2) fire('spare', 20, 'Spare solar now', 'Battery is full and about ' + (av - N.pvKw).toFixed(1) + ' kW is being held back. Good time for the geysers or washing.');
+    if (N.gridIn && N.gridKw > 0.3 && N.soc > (S.reserve || 25) + 10) fire('gridHigh', 3, 'Using the grid with battery at ' + Math.round(N.soc) + '%', 'Grid is supplying ' + N.gridKw.toFixed(1) + ' kW. Check the timer settings if this keeps happening.');
+    if (PROJ && PROJ.reserveAt && new Date().getHours() >= 17 && PROJ.reserveAt < PROJ.sunrise) fire('night', 20, 'Battery won\'t last the night', 'Projected to hit the ' + PROJ.floor + '% reserve around ' + hm(PROJ.reserveAt) + '. Avoid heavy loads this evening.');
+    const tb = liveBattTemp(); if (tb != null && tb >= 40) fire('hot', 6, 'Battery is hot: ' + tb.toFixed(1) + '°C', 'LFP batteries age faster above 40°C. Check the battery area is ventilated.');
+  }
+
+  // ---------- share card (PNG) ----------
+  async function shareCard(){
+    const T = sumTot(selDays()), F = flows(T), self = T.load ? (T.load - T.buy) / T.load : 0;
+    const c = document.createElement('canvas'); c.width = 1080; c.height = 1080; const g = c.getContext('2d');
+    const bg = g.createLinearGradient(0, 0, 0, 1080); bg.addColorStop(0, '#123c6e'); bg.addColorStop(.6, '#0e0e0d'); g.fillStyle = bg; g.fillRect(0, 0, 1080, 1080);
+    const sun = g.createRadialGradient(880, 120, 10, 880, 120, 260); sun.addColorStop(0, 'rgba(255,214,110,.95)'); sun.addColorStop(.25, 'rgba(255,190,60,.5)'); sun.addColorStop(1, 'rgba(255,170,40,0)'); g.fillStyle = sun; g.fillRect(560, 0, 520, 420);
+    g.fillStyle = '#f0efec'; g.font = '500 30px Inter, system-ui, sans-serif'; g.fillText('HOME SOLAR · ' + periodLabel().toUpperCase(), 80, 120);
+    g.font = '300 150px Inter, system-ui, sans-serif'; g.fillText(pct(self), 80, 330);
+    g.font = '400 38px Inter, system-ui, sans-serif'; g.fillStyle = '#c3c2b7'; g.fillText('self-powered', 84, 390);
+    const stat = (x, y, v, l, col) => { g.fillStyle = col; g.beginPath(); g.arc(x + 10, y - 16, 10, 0, 7); g.fill(); g.fillStyle = '#f0efec'; g.font = '300 64px Inter, system-ui, sans-serif'; g.fillText(v, x + 34, y); g.fillStyle = '#8d8c85'; g.font = '400 28px Inter, system-ui, sans-serif'; g.fillText(l, x + 36, y + 42); };
+    stat(80, 560, kwh(T.pv) + ' kWh', 'solar generated', '#c98500'); stat(560, 560, kwh(T.load) + ' kWh', 'house used', '#f0efec');
+    stat(80, 720, kwh(F.fromBatt) + ' kWh', 'from the battery', '#199e70'); stat(560, 720, kwh(T.buy) + ' kWh', 'from the grid', '#9085e9');
+    g.fillStyle = '#f0efec'; g.font = '300 84px Inter, system-ui, sans-serif'; g.fillText(rand((T.load - T.buy) * S.rate) + ' saved', 80, 920);
+    g.fillStyle = '#8d8c85'; g.font = '400 26px Inter, system-ui, sans-serif'; g.fillText((PLANT || '') + ' · ' + new Date().toLocaleDateString('en-ZA', {day:'numeric', month:'short', year:'numeric'}), 80, 990);
+    const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+    const file = new File([blob], 'home-solar-' + todayKey() + '.png', {type:'image/png'});
+    if (navigator.canShare && navigator.canShare({files:[file]})) { try { await navigator.share({files:[file], title:'Home Solar'}); return; } catch(e){} }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = file.name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }
+
+  // ---------- wall mode (kiosk for a tablet) ----------
+  let wakeLock = null;
+  async function toggleWall(on){
+    document.body.classList.toggle('wall', on);
+    if (on) {
+      try { await document.documentElement.requestFullscreen?.(); } catch(e){}
+      try { wakeLock = await navigator.wakeLock?.request('screen'); } catch(e){}
+    } else {
+      try { if (document.fullscreenElement) await document.exitFullscreen(); } catch(e){}
+      try { await wakeLock?.release(); } catch(e){} wakeLock = null;
+    }
+    if (DATA) render();
+  }
+  document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && document.body.classList.contains('wall')) toggleWall(false); });
+  document.addEventListener('visibilitychange', async () => { if (!document.hidden && document.body.classList.contains('wall') && !wakeLock) { try { wakeLock = await navigator.wakeLock?.request('screen'); } catch(e){} } });
+
+  // ---------- one hook for everything above, called at the end of render() ----------
+  function renderExtras(T, F, sel, days){
+    renderRing(T);
+    renderSankey(T, F, sel);
+    renderDayPower(sel);
+    renderHealth(sel);
+    renderCalendar(days);
+    renderCompare(sel);
+    renderGuidance();
+    renderSunArc(sel);
+    const age = dataAge(), meta = document.getElementById('flowMeta');
+    if (meta && nowState() && age) {
+      const stale = age.min > 15;
+      meta.innerHTML = (stale ? '<span class="stale">Latest reading ' + hm(age.last) + ' (' + Math.round(age.min) + ' min old). Is the Wi-Fi dongle online?</span>' : 'Latest reading ' + hm(age.last)) + ' · refreshes every 5 min';
+    }
+    checkAlerts();
+  }
+
+  document.getElementById('wallBtn').onclick = () => toggleWall(!document.body.classList.contains('wall'));
+  document.getElementById('wallExit').onclick = () => toggleWall(false);
+  document.getElementById('shareBtn').onclick = () => shareCard();
+  document.getElementById('printBtn').onclick = () => window.print();
+  document.getElementById('alertBtn').onclick = async () => {
+    const st = document.getElementById('alertState');
+    if (typeof Notification === 'undefined') { st.textContent = 'This browser doesn\'t support notifications.'; return; }
+    const p = await Notification.requestPermission();
+    S.alerts = p === 'granted'; store.set('solar.settings', JSON.stringify(S));
+    st.textContent = S.alerts ? 'Alerts on. They work while this page is open (a background tab is fine).' : 'Notifications were blocked in the browser.';
+  };
+  if (S.alerts && typeof Notification !== 'undefined' && Notification.permission === 'granted') document.getElementById('alertState').textContent = 'Alerts on.';
+
 
   let rsz; addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { if (DATA) render(); }, 250); });
 
