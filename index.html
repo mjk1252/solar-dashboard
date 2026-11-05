@@ -1517,7 +1517,7 @@ td.partial{color:var(--text-3)}
   }
   function timingReport(sel){
     const card = document.getElementById('timingCard');
-    const days = sel.map(dayTiming).filter(Boolean);
+    const days = sel.filter(d => d.tot.load > 1).map(dayTiming).filter(Boolean);   // skip setup days with no house data
     const btn = document.getElementById('timingLoad');
     btn.classList.toggle('hidden', !LIVE.token);
     if (!days.length) {
