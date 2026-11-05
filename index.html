@@ -350,10 +350,29 @@ td.partial{color:var(--text-3)}
 .gd-row{display:grid;grid-template-columns:72px 1fr;gap:10px;align-items:center;margin-bottom:5px;font-size:12px;color:var(--text-3)}
 .gd-strip{display:grid;grid-template-columns:repeat(24,1fr);gap:2px}
 .gd{display:inline-block;height:16px;border-radius:3px;background:var(--surface-2)}
-.gd.go{background:var(--good)}.gd.fill{background:#e3a008}.gd.batt{background:var(--text-3);opacity:.45}.gd.grid{background:#d03b3b}.gd.past{background:var(--surface-2);opacity:.5}
+.gd.go{background:var(--solar)}.gd.fill{background:var(--battery)}.gd.batt{background:repeating-linear-gradient(135deg,var(--battery) 0 2px,transparent 2px 5px);box-shadow:inset 0 0 0 1px var(--battery);opacity:.7}.gd.grid{background:var(--grid)}.gd.past{background:var(--surface-2);opacity:.5}
 .legend i.gd{width:10px;height:10px}
 .gd-axis{display:flex;justify-content:space-between;margin-left:82px;font-size:11px;color:var(--text-3)}
-#guidance{margin:0 0 14px}
+#guidance{margin:0}
+#guidance:empty{display:none}
+/* tabs */
+.tabs{display:inline-flex;gap:4px;margin-right:auto}
+.tabs button{border:0;background:transparent;padding:8px 14px;border-radius:12px;font-size:15px;font-weight:500;color:var(--on-sky-2,var(--text-2));text-shadow:var(--halo,none)}
+.tabs button{border-radius:0;padding:8px 4px;margin-right:14px}
+.tabs button[aria-selected="true"]{color:var(--on-sky,var(--text));box-shadow:inset 0 -2.5px 0 var(--solar)}
+@media screen{
+  body:not(.printall)[data-tab="now"] #dash > [data-tab]:not([data-tab="now"]),
+  body:not(.printall)[data-tab="plan"] #dash > [data-tab]:not([data-tab="plan"]),
+  body:not(.printall)[data-tab="history"] #dash > [data-tab]:not([data-tab="history"]),
+  body:not(.printall)[data-tab="health"] #dash > [data-tab]:not([data-tab="health"]){display:none}
+}
+@media (max-width: 520px){.tabs{width:100%;justify-content:space-between}.tabs button{flex:1;margin:0 4px}}
+/* tap-for-more tiles */
+.tile2.has-more{cursor:pointer;position:relative}
+.tile2 .more{display:none;margin-top:8px;font-size:12.5px;color:var(--text-3);line-height:1.45}
+.tile2.open .more{display:block}
+.tile2 .more-t{display:inline-block;margin-top:8px;font-size:11.5px;color:var(--text-3);text-decoration:underline;text-underline-offset:3px}
+.tile2.open .more-t{display:none}
 .grid2 > *,.hero > *{min-width:0}
 .gd-strip{min-width:0}
 .grid2 > .card.col{display:flex;flex-direction:column}
@@ -456,17 +475,25 @@ body.wall .wrap{max-width:1400px;padding-top:28px}
   <!-- Dashboard -->
   <main id="dash" class="hidden">
     <section class="livebar hidden" id="live" aria-live="polite"></section>
+
     <section class="status" id="status" aria-live="polite">
       <div class="hello" id="hello"></div>
       <h2 id="headline"></h2>
       <p id="subline"></p>
     </section>
+
     <div class="periods">
+      <div class="tabs" id="tabs" role="tablist" aria-label="Dashboard sections">
+        <button type="button" role="tab" data-t="now">Now</button>
+        <button type="button" role="tab" data-t="plan">Plan</button>
+        <button type="button" role="tab" data-t="history">History</button>
+        <button type="button" role="tab" data-t="health">Health</button>
+      </div>
       <div class="seg" id="seg" role="group" aria-label="Choose period"></div>
       <select class="daypick" id="daypick" aria-label="Pick a day"></select>
     </div>
 
-    <section class="hero">
+    <section data-tab="now" class="hero">
       <div class="card flow">
         <div class="flow-head"><div class="eyebrow" id="flowTitle">Energy flow</div><div class="flow-meta" id="flowMeta"></div></div>
         <svg id="flowSvg" viewBox="0 0 640 360" role="img" aria-label="Energy flow between solar, battery, grid and house"></svg>
@@ -477,21 +504,17 @@ body.wall .wrap{max-width:1400px;padding-top:28px}
           <div class="big" id="saved">R0</div>
           <div class="stat l" id="savedSub" style="margin-top:8px;color:var(--text-2);font-size:13px"></div>
         </div>
-        <div>
-          <div class="eyebrow" id="splitTitle">Where the house got its power</div>
-          <div class="bar-split" id="split"></div>
-          <div class="legend" id="splitLegend"></div>
-        </div>
         <div class="row">
           <div class="stat"><div class="v" id="paid">R0</div><div class="l">Paid for grid power</div></div>
           <div class="stat"><div class="v" id="earned">R0</div><div class="l" id="earnedL">Earned from export</div></div>
           <div class="stat"><div class="v" id="without">R0</div><div class="l">Would have paid without solar</div></div>
-          <div class="stat ringstat"><svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="18" fill="none" stroke="var(--line)" stroke-width="5"/><circle id="selfRing" cx="22" cy="22" r="18" fill="none" stroke="var(--good)" stroke-width="5" stroke-linecap="round" transform="rotate(-90 22 22)" stroke-dasharray="0 200"/></svg><div><div class="v" id="selfpct">0%</div><div class="l">Self-powered</div><div class="l" id="offsetL" style="font-size:11.5px"></div></div></div>
+          <div class="stat ringstat"><svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="18" fill="none" stroke="var(--line)" stroke-width="5"/><circle id="selfRing" cx="22" cy="22" r="18" fill="none" stroke="var(--solar)" stroke-width="5" stroke-linecap="round" transform="rotate(-90 22 22)" stroke-dasharray="0 200"/></svg><div><div class="v" id="selfpct">0%</div><div class="l">Self-powered</div><div class="l" id="offsetL" style="font-size:11.5px"></div></div></div>
         </div>
+        <div id="guidance"></div>
       </div>
     </section>
 
-    <section class="kpis">
+    <section data-tab="now" class="kpis">
       <div class="card kpi"><div class="eyebrow"><span class="dot" style="background:var(--solar)"></span>Solar</div><div class="v" id="kSolar">0</div><div class="d"><span>generated</span> <span class="per"></span></div></div>
       <div class="card kpi"><div class="eyebrow">House</div><div class="v" id="kLoad">0</div><div class="d"><span>used</span> <span class="per"></span></div></div>
       <div class="card kpi"><div class="eyebrow"><span class="dot" style="background:var(--grid)"></span>Grid</div><div class="v" id="kGrid">0</div><div class="d"><span id="kGridD">imported</span> <span class="per"></span></div></div>
@@ -499,37 +522,7 @@ body.wall .wrap{max-width:1400px;padding-top:28px}
       <div class="card kpi"><div class="eyebrow"><span class="dot" style="background:var(--battery)"></span>Battery out</div><div class="v" id="kDis">0</div><div class="d"><span>discharged</span> <span class="per"></span></div></div>
     </section>
 
-    <section class="grid2">
-      <div class="card">
-        <div class="eyebrow">Monthly outlook</div>
-        <h3 id="projTitle">Estimated 30-day bill</h3>
-        <p class="hint" id="projHint">Based on the complete days loaded.</p>
-        <div class="big" id="projBill">R0</div>
-        <div class="sun-facts" style="margin-top:18px">
-          <div><div class="v" id="projSave">R0</div><div class="l">saved / month</div></div>
-          <div><div class="v" id="projWithout">R0</div><div class="l">bill without solar</div></div>
-          <div><div class="v" id="projPayback">-</div><div class="l" id="projPaybackL">payback</div></div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="eyebrow">What stood out</div>
-        <ul class="insights" id="insights"></ul>
-      </div>
-    </section>
-
-    <section class="card full">
-      <div class="eyebrow">Hour by hour</div>
-      <h3 id="hourTitle">Where the house got its power</h3>
-      <p class="hint" id="hourHint">kWh per hour. Hover a bar for the split.</p>
-      <div class="legend" style="margin-bottom:10px">
-        <span><i style="background:var(--solar)"></i>Solar (direct)</span>
-        <span><i style="background:var(--battery)"></i>Battery</span>
-        <span><i style="background:var(--grid)"></i>Grid</span>
-      </div>
-      <div class="chart-box tall"><canvas id="hourChart" aria-label="Hourly energy by source"></canvas></div>
-    </section>
-
-    <section class="card full" id="powerCard">
+    <section data-tab="now" class="card full" id="powerCard">
       <div class="eyebrow">Power through the day</div>
       <h3>Every flow on one scale</h3>
       <p class="hint">kW. Above the line: supplying the house (solar, battery discharging, grid importing). Below: battery charging or exporting. Hover or press and hold to read every flow at that moment. Gaps are missing readings.</p>
@@ -542,25 +535,61 @@ body.wall .wrap{max-width:1400px;padding-top:28px}
       <div class="chart-box tall"><canvas id="powerChart" aria-label="Power flows through the day"></canvas></div>
     </section>
 
-    <section class="card full">
-      <div class="eyebrow">Energy map</div>
-      <h3 id="sankeyTitle">Where the energy went</h3>
-      <p class="hint">Band width is kWh. "Held back" is solar the panels could have made while the battery was full and export is off.</p>
-      <div id="sankey"></div>
+    <section data-tab="now" class="card full" id="hourCard">
+      <div class="eyebrow">Hour by hour</div>
+      <h3 id="hourTitle">Where the house got its power</h3>
+      <p class="hint" id="hourHint">kWh per hour. Hover a bar for the split.</p>
+      <div class="legend" style="margin-bottom:10px">
+        <span><i style="background:var(--solar)"></i>Solar (direct)</span>
+        <span><i style="background:var(--battery)"></i>Battery</span>
+        <span><i style="background:var(--grid)"></i>Grid</span>
+      </div>
+      <div class="chart-box tall"><canvas id="hourChart" aria-label="Hourly energy by source"></canvas></div>
     </section>
 
-    <section class="card full" id="usageCard">
-      <div class="eyebrow" id="usageEyebrow">Where the energy goes</div>
-      <h3>Always-on load, nights and geysers</h3>
-      <p class="hint" id="usageHint"></p>
-      <div class="usage3">
-        <div class="tile2" id="baseTile"></div>
-        <div class="tile2" id="nightTile"></div>
-        <div class="tile2" id="geyserTile"></div>
+    <section data-tab="now" class="grid2">
+      <div class="card">
+        <div class="eyebrow">Energy map</div>
+        <h3 id="sankeyTitle">Where the energy went</h3>
+        <p class="hint">Band width is kWh. "Held back" is solar the panels could have made while the battery was full and export is off.</p>
+        <div id="sankey"></div>
+        </div>
+      <div class="card">
+        <div class="eyebrow">What stood out</div>
+        <ul class="insights" id="insights"></ul>
       </div>
     </section>
 
-    <section class="card full" id="timingCard">
+    <section data-tab="plan" class="grid2">
+      <div class="card">
+        <div class="eyebrow">Peak sun</div>
+        <h3>Solar production</h3>
+        <p class="hint" id="sunHint">Solar power through the day.</p>
+        <div id="sunArc"></div>
+        <div class="sun-facts sun4">
+          <div><div class="v" id="sunPeak">-</div><div class="l" id="sunPeakL">peak output</div></div>
+          <div><div class="v" id="sunPeakAt">-</div><div class="l">peak time</div></div>
+          <div><div class="v" id="sunWindow">-</div><div class="l">strong-sun window</div></div>
+          <div><div class="v" id="sunSpare">-</div><div class="l" id="sunSpareL">spare solar</div></div>
+        </div>
+        <div class="forecast" id="forecast"></div>
+        <div class="legend" id="sunLegend" style="margin-bottom:8px"></div>
+        <div class="chart-box"><canvas id="sunChart" aria-label="Solar power curve"></canvas></div>
+      </div>
+      <div class="card col">
+        <div class="eyebrow">Battery</div>
+        <h3>Battery level</h3>
+        <p class="hint" id="socHint">State of charge over time.</p>
+        <div class="sun-facts">
+          <div><div class="v" id="socMin">-</div><div class="l">lowest</div></div>
+          <div><div class="v" id="socEmpty">-</div><div class="l" id="socEmptyL">hit reserve at</div></div>
+          <div><div class="v" id="socFull">-</div><div class="l">full at</div></div>
+        </div>
+        <div class="chart-box grow"><canvas id="socChart" aria-label="Battery state of charge"></canvas></div>
+      </div>
+    </section>
+
+    <section data-tab="plan" class="card full" id="timingCard">
       <div class="timing-head">
         <div>
           <div class="eyebrow" id="timingEyebrow">Best times for appliances</div>
@@ -580,53 +609,37 @@ body.wall .wrap{max-width:1400px;padding-top:28px}
       <div class="timeline" id="timeline" role="img" aria-label="Daily battery and spare solar timeline"></div>
     </section>
 
-    <section class="card full" id="healthCard">
-      <div class="eyebrow">System health</div>
-      <h3>Battery, backup and grid outages</h3>
-      <p class="hint">Worked out from the readings. Watch these over months rather than days.</p>
-      <div class="health" id="healthGrid"></div>
-      <div class="eyebrow" style="margin:22px 0 8px">Solar inputs (MPPT strings)</div>
-      <div id="stringsBox"></div>
-    </section>
-
-    <section class="grid2">
-      <div class="card">
-        <div class="eyebrow">Peak sun</div>
-        <h3>Solar production</h3>
-        <p class="hint" id="sunHint">Solar power through the day.</p>
-        <div id="sunArc"></div>
-        <div class="sun-facts sun4">
-          <div><div class="v" id="sunPeak">-</div><div class="l" id="sunPeakL">peak output</div></div>
-          <div><div class="v" id="sunPeakAt">-</div><div class="l">peak time</div></div>
-          <div><div class="v" id="sunWindow">-</div><div class="l">strong-sun window</div></div>
-          <div><div class="v" id="sunSpare">-</div><div class="l" id="sunSpareL">spare solar</div></div>
-        </div>
-        <div class="forecast" id="forecast"></div>
-        <div id="guidance"></div>
-        <div class="legend" id="sunLegend" style="margin-bottom:8px"></div>
-        <div class="chart-box"><canvas id="sunChart" aria-label="Solar power curve"></canvas></div>
-      </div>
-      <div class="card col">
-        <div class="eyebrow">Battery</div>
-        <h3>Battery level</h3>
-        <p class="hint" id="socHint">State of charge over time.</p>
-        <div class="sun-facts">
-          <div><div class="v" id="socMin">-</div><div class="l">lowest</div></div>
-          <div><div class="v" id="socEmpty">-</div><div class="l" id="socEmptyL">hit reserve at</div></div>
-          <div><div class="v" id="socFull">-</div><div class="l">full at</div></div>
-        </div>
-        <div class="chart-box grow"><canvas id="socChart" aria-label="Battery state of charge"></canvas></div>
+    <section data-tab="plan" class="card full" id="usageCard">
+      <div class="eyebrow" id="usageEyebrow">Where the energy goes</div>
+      <h3>Always-on load, nights and geysers</h3>
+      <p class="hint" id="usageHint"></p>
+      <div class="usage3">
+        <div class="tile2" id="baseTile"></div>
+        <div class="tile2" id="nightTile"></div>
+        <div class="tile2" id="geyserTile"></div>
       </div>
     </section>
 
-    <section class="card full" id="calCard">
+    <section data-tab="plan" class="card full" id="outlookCard">
+        <div class="eyebrow">Monthly outlook</div>
+        <h3 id="projTitle">Estimated 30-day bill</h3>
+        <p class="hint" id="projHint">Based on the complete days loaded.</p>
+        <div class="big" id="projBill">R0</div>
+        <div class="sun-facts" style="margin-top:18px">
+          <div><div class="v" id="projSave">R0</div><div class="l">saved / month</div></div>
+          <div><div class="v" id="projWithout">R0</div><div class="l">bill without solar</div></div>
+          <div><div class="v" id="projPayback">-</div><div class="l" id="projPaybackL">payback</div></div>
+        </div>
+    </section>
+
+    <section data-tab="history" class="card full" id="calCard">
       <div class="eyebrow">Calendar</div>
       <h3>Self-powered days and records</h3>
       <p class="hint">Each day coloured by how much of the house ran on its own power. Hover for details.</p>
       <div id="calendar"></div>
     </section>
 
-    <section class="card full" id="dailyCard">
+    <section data-tab="history" class="card full" id="dailyCard">
       <div class="eyebrow">Day by day</div>
       <h3>Daily totals</h3>
       <p class="hint">kWh the house used each day, by source.</p>
@@ -638,12 +651,21 @@ body.wall .wrap{max-width:1400px;padding-top:28px}
       <div class="chart-box"><canvas id="dayChart" aria-label="Daily energy by source"></canvas></div>
     </section>
 
-    <section class="card full">
+    <section data-tab="history" class="card full">
       <div class="eyebrow">Table</div>
       <div class="timing-head"><h3 style="margin:0">All figures</h3>
         <div class="card-actions"><button type="button" class="btn" id="printBtn">Print / save PDF report</button><button type="button" class="btn" id="shareBtn">Share image</button></div></div>
       <p class="hint">Daily totals from the inverter's own counters. Greyed rows are incomplete days; "gap" marks missing readings.</p>
       <div class="tbl-wrap"><table id="tbl"></table></div>
+    </section>
+
+    <section data-tab="health" class="card full" id="healthCard">
+      <div class="eyebrow">System health</div>
+      <h3>Battery, backup and grid outages</h3>
+      <p class="hint">Worked out from the readings. Watch these over months rather than days.</p>
+      <div class="health" id="healthGrid"></div>
+      <div class="eyebrow" style="margin:22px 0 8px">Solar inputs (MPPT strings)</div>
+      <div id="stringsBox"></div>
     </section>
 
     <div class="foot">Data stays in your browser. Figures are from the inverter's daily counters; hourly charts are worked out from 5-minute power readings, so they can differ slightly.</div>
@@ -1013,7 +1035,6 @@ body.wall .wrap{max-width:1400px;padding-top:28px}
     const paid = T.buy * S.rate, without = T.load * S.rate, saved = without - paid, earned = T.sell * S.feed;
     const PL = periodLabel();
     document.getElementById('savedTitle').textContent = 'Saved on electricity · ' + PL;
-    document.getElementById('splitTitle').textContent = 'Where the house got its power · ' + PL;
     document.querySelectorAll('.kpi .per').forEach(e => e.textContent = periodPhrase());
     setNum('saved', saved + earned, rand);
     document.getElementById('savedSub').textContent =
@@ -1030,14 +1051,6 @@ body.wall .wrap{max-width:1400px;padding-top:28px}
     }
     const self = T.load ? (T.load - T.buy) / T.load : 0;
     setNum('selfpct', self, v => pct(v));
-
-    // split bar
-    const parts = [['Solar', F.fromSolar, '--solar'], ['Battery', F.fromBatt, '--battery'], ['Grid', F.fromGrid, '--grid']];
-    const totalUse = F.fromSolar + F.fromBatt + F.fromGrid || 1;
-    document.getElementById('split').innerHTML = parts.filter(p => p[1] > 0)
-      .map(p => '<span style="width:' + (p[1]/totalUse*100) + '%;background:var(' + p[2] + ')" title="' + p[0] + ' ' + kwh(p[1]) + ' kWh"></span>').join('');
-    document.getElementById('splitLegend').innerHTML = parts
-      .map(p => '<span><i style="background:var(' + p[2] + ')"></i>' + p[0] + ' <b style="color:var(--text);font-weight:500">' + pct(p[1]/totalUse) + '</b> · ' + kwh(p[1]) + ' kWh</span>').join('');
 
     // kpis
     const u = ' <small>kWh</small>';
@@ -2376,7 +2389,7 @@ body.wall .wrap{max-width:1400px;padding-top:28px}
       if (avg('grid') > 0.3) return ['grid', 'Grid likely: avoid heavy loads'];
       return ['batt', 'On battery'];
     };
-    let h = '<div class="eyebrow" style="margin:4px 0 8px">Best times to run appliances (forecast)</div>';
+    let h = '<div class="eyebrow" style="margin:4px 0 8px">Best times to run heavy appliances</div>';
     Object.keys(byDay).slice(0, 2).forEach(k => {
       const hours = byDay[k];
       h += '<div class="gd-row"><div class="gd-day">' + (k === todayKey() ? 'Today' : 'Tomorrow') + '</div><div class="gd-strip">';
@@ -2389,7 +2402,7 @@ body.wall .wrap{max-width:1400px;padding-top:28px}
       h += '</div></div>';
     });
     h += '<div class="gd-axis"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>' +
-         '<div class="legend" style="margin-top:6px"><span><i class="gd go"></i>Spare solar: run heavy loads</span><span><i class="gd fill"></i>Battery filling</span><span><i class="gd batt"></i>On battery</span><span><i class="gd grid"></i>Grid likely</span></div>';
+         '<div class="legend" style="margin-top:6px"><span><i class="gd go"></i>Spare solar</span><span><i class="gd fill"></i>Battery filling</span><span><i class="gd batt"></i>On battery</span><span><i class="gd grid"></i>Grid likely</span></div>';
     el.innerHTML = h;
   }
 
@@ -2512,23 +2525,30 @@ body.wall .wrap{max-width:1400px;padding-top:28px}
     const tMax = temps.length ? Math.max(...temps) : null;
     const hot35 = temps.filter(t => t >= 35).length * 5 / 60, hot40 = temps.filter(t => t >= 40).length * 5 / 60;
     const aut = autonomyHours();
-    const tile = (k, v, sub, warn) => '<div class="tile2' + (warn ? ' warn' : '') + '"><div class="k">' + k + '</div><div class="big2">' + v + '</div><div>' + sub + '</div></div>';
+    // one short line per tile; the explanation sits behind "More" (tap the tile)
+    const tile = (k, v, sub, more, warn) => '<div class="tile2' + (warn ? ' warn' : '') + (more ? ' has-more' : '') + '"' + (more ? ' tabindex="0" role="button" aria-expanded="false"' : '') + '><div class="k">' + k + '</div><div class="big2">' + v + '</div><div>' + sub + '</div>' +
+      (more ? '<div class="more">' + more + '</div><span class="more-t">More</span>' : '') + '</div>';
     let h = '';
-    h += tile('Battery cycles', cycles.toFixed(1) + '<small>full cycles</small>', kwh(disAll) + ' kWh discharged since the first day loaded. About ' + (cycles / 6000 * 100).toFixed(2) + '% of a typical 6,000-cycle rating.');
-    h += tile('Round-trip efficiency', eff != null ? pct(eff) : '-', eff != null ? 'Energy back out for every kWh put in, over ' + rd.length + ' day' + (rd.length > 1 ? 's' : '') + '. 85–95% is normal for LFP plus the inverter.' : 'Needs a few days of 5-minute readings (use "Analyse last 14 days").');
-    h += tile('Usable capacity', capMed != null ? kwh(capMed) + '<small>kWh</small>' : '-', capMed != null ? 'Measured from ' + capEst.length + ' long discharge' + (capEst.length > 1 ? 's' : '') + ' (rated ' + kwh(cap) + ' kWh). Watch this trend over the months; it drops slowly as the battery ages.' : 'Measured from long evening discharges once there are some.');
-    h += tile('Battery temperature', tNow != null ? tNow.toFixed(1) + '<small>°C now</small>' : '-',
-      (tMax != null ? 'Max ' + tMax.toFixed(1) + '°C this period' + (hot35 ? ', ' + hot35.toFixed(1) + ' h at 35°C+' : '') + '. ' : '') +
-      (tNow != null && tNow >= 40 ? '<b>Hot: LFP ages faster above 40°C. Check ventilation.</b>' : 'Ideal below 35°C; above 40°C ages it faster.'), tNow != null && tNow >= 40 || hot40 > 0.5);
+    h += tile('Battery cycles', cycles.toFixed(1) + '<small>cycles</small>', (cycles / 6000 * 100).toFixed(2) + '% of a 6,000-cycle life',
+      kwh(disAll) + ' kWh discharged since the first day loaded, divided by the battery size. LFP batteries are typically rated for about 6,000 cycles.');
+    h += tile('Round-trip efficiency', eff != null ? pct(eff) : '-', eff != null ? '85–95% is normal' : 'Needs 5-minute readings',
+      eff != null ? 'Energy back out for every kWh put in, over ' + rd.length + ' day' + (rd.length > 1 ? 's' : '') + ', corrected for the change in charge level. Includes inverter losses.' : 'Load a few days of readings (Plan → "Analyse last 14 days").');
+    h += tile('Usable capacity', capMed != null ? kwh(capMed) + '<small>kWh</small>' : '-', capMed != null ? 'of ' + kwh(cap) + ' kWh rated' : 'Needs a long discharge',
+      'Measured from ' + (capEst.length || 'long') + ' evening discharge' + (capEst.length === 1 ? '' : 's') + ': kWh out ÷ the drop in charge. Watch the trend over months; it falls slowly as the battery ages.');
+    const hot = tNow != null && tNow >= 40 || hot40 > 0.5;
+    h += tile('Battery temperature', tNow != null ? tNow.toFixed(1) + '<small>°C</small>' : '-',
+      hot ? '<b>Hot: check ventilation</b>' : tMax != null ? 'Max ' + tMax.toFixed(1) + '°C this period' : 'Ideal below 35°C',
+      'Ideal below 35°C. LFP ages faster above 40°C.' + (hot35 ? ' ' + hot35.toFixed(1) + ' h at 35°C or more this period.' : ''), hot);
     h += tile('If the grid went down now', aut ? (aut.h >= 1 ? Math.floor(aut.h) + 'h ' + Math.round((aut.h % 1) * 60) + 'm' : Math.round(aut.h * 60) + ' min') : '-',
-      aut ? 'At your usual night load (~' + aut.kw.toFixed(1) + ' kW), using ' + kwh(aut.kwh) + ' kWh down to the 10% shutdown level. Solar would add more in daylight.' : 'Shown when connected live.');
+      aut ? 'at ~' + aut.kw.toFixed(1) + ' kW night load' : 'Shown when connected live',
+      aut ? kwh(aut.kwh) + ' kWh is left above the 10% shutdown level. Based on your usual night load; solar would add more in daylight.' : '');
     // outages
     const outs = outagesFromRows(sel).concat(loadOutages().filter(o => o.end && sel.some(d => d.key === dayKey(new Date(o.start)))));
     const fmtD = ms => { const m = Math.round(ms / 60000); return m >= 60 ? Math.floor(m / 60) + 'h ' + (m % 60) + 'm' : m + ' min'; };
     h += '<div class="tile2"><div class="k">Grid outages</div><div class="big2">' + outs.length + '</div>' +
       (outs.length ? '<ul class="gx">' + outs.slice(-5).reverse().map(o => '<li><span>' + niceDay(dayKey(new Date(o.start))).replace(/^\w+, /, '') + ' ' + hm(new Date(o.start)) + '</span><span>' + fmtD(o.end - o.start) +
         (o.soc0 != null && o.soc1 != null ? ' · battery ' + Math.round(o.soc0) + '→' + Math.round(o.soc1) + '%' : '') + '</span></li>').join('') + '</ul>'
-        : '<div>No grid loss found in this period. ' + (LIVE.token ? 'While this page is open it also watches grid voltage live.' : 'Excel exports are checked using grid voltage.') + '</div>') + '</div>';
+        : '<div>None this period</div>') + '</div>';
     el.innerHTML = h;
     renderStrings(sel);
   }
@@ -2564,7 +2584,7 @@ body.wall .wrap{max-width:1400px;padding-top:28px}
   }
 
   // ---------- calendar heatmap, records, streaks ----------
-  const SEQ = ['#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#184f95'];
+  const SEQ = ['#fbeccb', '#f6d68c', '#efbc4e', '#dc9c14', '#b07a05', '#7a5402'];   // solar-amber ramp, low → high
   function renderCalendar(days){
     const el = document.getElementById('calendar'); if (!el) return;
     const real = days.filter(d => d.tot.load > 1);
@@ -2577,7 +2597,7 @@ body.wall .wrap{max-width:1400px;padding-top:28px}
       const k = y + '-' + String(m).padStart(2, '0') + '-' + String(i).padStart(2, '0'), d = byKey[k];
       if (!d || d.tot.load <= 1) { cells += '<div class="cal-c none"><b>' + i + '</b></div>'; continue; }
       const self = (d.tot.load - d.tot.buy) / d.tot.load, step = Math.min(SEQ.length - 1, Math.floor(self * SEQ.length));
-      cells += '<div class="cal-c" style="background:' + SEQ[step] + ';color:' + (step >= 3 ? '#fff' : '#0b0b0b') + '" title="' + niceDay(k) + ': ' + pct(self) + ' self-powered, ' + kwh(d.tot.pv) + ' kWh solar, ' + kwh(d.tot.buy) + ' kWh grid' + (d.complete ? '' : ' (so far)') + '"><b>' + i + '</b><span>' + pct(self) + '</span></div>';
+      cells += '<div class="cal-c" style="background:' + SEQ[step] + ';color:' + (step >= 4 ? '#fff' : '#1d1503') + '" title="' + niceDay(k) + ': ' + pct(self) + ' self-powered, ' + kwh(d.tot.pv) + ' kWh solar, ' + kwh(d.tot.buy) + ' kWh grid' + (d.complete ? '' : ' (so far)') + '"><b>' + i + '</b><span>' + pct(self) + '</span></div>';
     }
     // records & streaks (complete days only)
     const full = real.filter(d => d.complete);
@@ -2609,7 +2629,8 @@ body.wall .wrap{max-width:1400px;padding-top:28px}
       if (b < 0.3) return;
       const ch = (a - b) / b, up = ch >= 0, better = up === (good > 0);
       const el = document.createElement('div'); el.className = 'cmp ' + (Math.abs(ch) < 0.03 ? '' : better ? 'good' : 'bad');
-      el.textContent = (Math.abs(ch) < 0.03 ? '≈ same' : (up ? '▲ ' : '▼ ') + Math.round(Math.abs(ch) * 100) + '%') + ' vs yesterday by now';
+      el.textContent = (Math.abs(ch) < 0.03 ? '≈ yesterday' : (up ? '▲ ' : '▼ ') + Math.round(Math.abs(ch) * 100) + '%');
+      el.title = 'Compared with yesterday up to the same time';
       document.getElementById(id).parentElement.appendChild(el);
     });
   }
@@ -2683,6 +2704,7 @@ body.wall .wrap{max-width:1400px;padding-top:28px}
   async function toggleWall(on){
     document.body.classList.toggle('wall', on);
     if (on) {
+      setTab('now', false);
       try { await document.documentElement.requestFullscreen?.(); } catch(e){}
       try { wakeLock = await navigator.wakeLock?.request('screen'); } catch(e){}
     } else {
@@ -2699,6 +2721,8 @@ body.wall .wrap{max-width:1400px;padding-top:28px}
     renderRing(T);
     renderSankey(T, F, sel);
     renderDayPower(sel);
+    // single day: the power chart already shows the hour-by-hour story, so the bar chart is only for multi-day averages
+    document.getElementById('hourCard').classList.toggle('hidden', !document.getElementById('powerCard').classList.contains('hidden'));
     renderHealth(sel);
     renderCalendar(days);
     renderCompare(sel);
@@ -2712,10 +2736,27 @@ body.wall .wrap{max-width:1400px;padding-top:28px}
     checkAlerts();
   }
 
+  // ---------- tabs: Now / Plan / History / Health ----------
+  function setTab(t, rerender){
+    if (!['now', 'plan', 'history', 'health'].includes(t)) t = 'now';
+    document.body.dataset.tab = t; store.set('solar.tab', t);
+    document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.t === t)));
+    if (rerender && DATA) { render(); scrollTo({top:0, behavior:'smooth'}); }   // re-render so charts size to the now-visible cards
+  }
+  document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => setTab(b.dataset.t, true));
+  setTab(store.get('solar.tab') || 'now', false);
+  // tap a tile for its explanation
+  document.addEventListener('click', e => { const t = e.target.closest('.tile2.has-more'); if (t) { t.classList.toggle('open'); t.setAttribute('aria-expanded', String(t.classList.contains('open'))); } });
+  document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('.tile2.has-more')) { e.preventDefault(); e.target.click(); } });
+
   document.getElementById('wallBtn').onclick = () => toggleWall(!document.body.classList.contains('wall'));
   document.getElementById('wallExit').onclick = () => toggleWall(false);
   document.getElementById('shareBtn').onclick = () => shareCard();
-  document.getElementById('printBtn').onclick = () => window.print();
+  // the printed report includes every section, not just the open tab
+  document.getElementById('printBtn').onclick = () => {
+    document.body.classList.add('printall'); render();
+    setTimeout(() => { window.print(); document.body.classList.remove('printall'); render(); }, 600);
+  };
   document.getElementById('alertBtn').onclick = async () => {
     const st = document.getElementById('alertState');
     if (typeof Notification === 'undefined') { st.textContent = 'This browser doesn\'t support notifications.'; return; }
