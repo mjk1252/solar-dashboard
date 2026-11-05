@@ -1696,7 +1696,9 @@ td.partial{color:var(--text-3)}
     const real = DATA ? DATA.days.filter(d => d.complete && d.tot.load > 1) : [];
     const dayUse = real.length ? real.reduce((a, d) => a + d.hourly.reduce((x, h, i) => x + (i >= 6 && i < 18 ? h.solar + h.batt + h.grid : 0), 0), 0) / real.length : 25;
     const need = dayUse + (S.cap || 16.07) * (100 - (S.reserve || 25)) / 100;
-    const sky = c => c == null ? '' : c < 25 ? 'sunny' : c < 55 ? 'partly cloudy' : c < 80 ? 'mostly cloudy' : 'overcast';
+    // describe the sky by how strong the sunlight is (thin high cloud barely dims it), using cloud % only to tell sunny from mostly sunny
+    const sky = f => { const r = f.pk / Math.max((S.kwp || 13) * 0.8, 0.1);
+      return r >= 0.85 ? (f.cloud != null && f.cloud >= 30 ? 'mostly sunny' : 'sunny') : r >= 0.6 ? 'partly cloudy' : r >= 0.35 ? 'mostly cloudy' : 'overcast'; };
     const verdict = f => {
       if (f.kwh >= need + 10) return 'Plenty: enough for the house, a full battery and all the geysers' + (f.pkAt ? ', best around ' + hm(f.pkAt) : '') + '.';
       if (f.kwh >= need) return 'Should fill the battery and cover the day. Heat geysers in the sunniest hours' + (f.pkAt ? ' (around ' + hm(f.pkAt) + ')' : '') + '.';
@@ -1705,7 +1707,7 @@ td.partial{color:var(--text-3)}
     };
     const card = (title, f, note) => !f ? '' :
       '<div class="fc"><div class="k">' + title + '</div><div class="v">' + kwh(f.kwh) + '<small>kWh solar expected</small></div>' +
-      '<div>' + (f.cloud != null ? sky(f.cloud).charAt(0).toUpperCase() + sky(f.cloud).slice(1) + ' · ' : '') + 'peak ~' + f.pk.toFixed(1) + ' kW' + (f.pkAt ? ' at ' + hm(f.pkAt) : '') + '</div>' +
+      '<div>' + sky(f).charAt(0).toUpperCase() + sky(f).slice(1) + ' · peak ~' + f.pk.toFixed(1) + ' kW' + (f.pkAt ? ' at ' + hm(f.pkAt) : '') + '</div>' +
       '<div style="margin-top:6px;color:var(--text)">' + note(f) + '</div></div>';
     el.innerHTML =
       card('Rest of today', rest && rest.kwh > 0.2 ? rest : null, f => f.kwh < 1 ? 'The sun is nearly done for today.' : 'Still to come from the panels today.') +
