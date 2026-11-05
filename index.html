@@ -269,6 +269,14 @@ td.partial{color:var(--text-3)}
 .livebar .tile .ico{position:absolute;right:12px;top:50%;transform:translateY(-50%);opacity:.95}
 @media (max-width: 520px){.livebar .tile .ico{top:auto;bottom:6px;right:8px;transform:scale(.62);transform-origin:bottom right}}
 
+/* solar forecast */
+.forecast{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:2px 0 14px}
+.fc{background:var(--surface-2);border-radius:14px;padding:12px 14px;font-size:13px;color:var(--text-2)}
+.fc .k{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-3);font-weight:500}
+.fc .v{font-size:22px;font-weight:300;color:var(--text);margin:4px 0 2px}
+.fc .v small{font-size:12px;color:var(--text-3);margin-left:3px}
+@media (max-width: 520px){.forecast{grid-template-columns:1fr}}
+
 /* where the energy goes */
 .usage3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:6px}
 .tile2{background:var(--surface-2);border-radius:16px;padding:16px;font-size:13.5px;color:var(--text-2)}
@@ -491,6 +499,7 @@ td.partial{color:var(--text-3)}
           <div><div class="v" id="sunWindow">-</div><div class="l">strong-sun window</div></div>
           <div><div class="v" id="sunSpare">-</div><div class="l" id="sunSpareL">spare solar</div></div>
         </div>
+        <div class="forecast" id="forecast"></div>
         <div class="legend" id="sunLegend" style="margin-bottom:8px"></div>
         <div class="chart-box"><canvas id="sunChart" aria-label="Solar power curve"></canvas></div>
       </div>
@@ -952,14 +961,19 @@ td.partial{color:var(--text-3)}
       // Open-Meteo azimuth: 0 = facing south, 180 = facing north (what you want in the southern hemisphere)
       const AZ = {north:180, ne:-135, nw:135, east:-90, west:90, flat:0}, az = AZ[S.face] ?? 180, tilt = S.face === 'flat' ? 0 : 25;
       const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
-        '&current=temperature_2m,weather_code,cloud_cover,is_day&daily=sunrise,sunset&forecast_days=1&past_days=31' +
-        '&hourly=global_tilted_irradiance&tilt=' + tilt + '&azimuth=' + az + '&timezone=auto');
+        '&current=temperature_2m,weather_code,cloud_cover,is_day&daily=sunrise,sunset&forecast_days=2&past_days=31' +
+        '&hourly=global_tilted_irradiance,cloud_cover&tilt=' + tilt + '&azimuth=' + az + '&timezone=auto');
       const j = await r.json();
       if (!j || !j.current) throw new Error('no weather');
+      const di = j.daily && j.daily.time ? Math.max(0, j.daily.time.indexOf(todayKey())) : 0;   // today's sunrise/sunset
       WX.data = {code:j.current.weather_code, cloud:j.current.cloud_cover, day:!!j.current.is_day, temp:j.current.temperature_2m,
-        sunrise:j.daily && j.daily.sunrise && j.daily.sunrise[j.daily.sunrise.length - 1], sunset:j.daily && j.daily.sunset && j.daily.sunset[j.daily.sunset.length - 1]};
+        sunrise:j.daily && j.daily.sunrise && j.daily.sunrise[di], sunset:j.daily && j.daily.sunset && j.daily.sunset[di]};
       WX.gti = new Map();
-      if (j.hourly && j.hourly.time) j.hourly.time.forEach((t, i) => { const v = j.hourly.global_tilted_irradiance[i]; if (v != null) WX.gti.set(t, v); });
+      WX.cloud = new Map();
+      if (j.hourly && j.hourly.time) j.hourly.time.forEach((t, i) => {
+        const v = j.hourly.global_tilted_irradiance[i]; if (v != null) WX.gti.set(t, v);
+        const c = j.hourly.cloud_cover && j.hourly.cloud_cover[i]; if (c != null) WX.cloud.set(t, c);
+      });
       WX.at = Date.now();
     } catch(e) { /* keep the time/solar-based fallback */ }
     applyWeather();
@@ -1656,7 +1670,49 @@ td.partial{color:var(--text-3)}
     sel.forEach(d => { const S2 = solarSlots(d); S2.used.forEach((u, i) => { const a = S2.avail[i]; if (u != null && a != null) { any = true; if ((S2.soc[i] ?? 0) >= 97) kwh += Math.max(a - u, 0) / 6; } }); });
     return any ? kwh : null;
   }
+  // forecast: solar the panels can make on a given day (from now, if it's today), from the weather forecast
+  function forecastDay(key, fromNow){
+    if (!WX.gti || !WX.gti.size) return null;
+    const [y, m, d] = key.split('-').map(Number), now = new Date();
+    let kwh = 0, pk = 0, pkAt = null, any = false, cl = [], sunH = 0;
+    for (let i = 0; i < 144; i++) {
+      const t = new Date(y, m - 1, d, Math.floor(i / 6), (i % 6) * 10 + 5);
+      if (fromNow && t < now) continue;
+      const a = availKw(t); if (a == null) continue;
+      any = true; kwh += a / 6;
+      if (a > pk) { pk = a; pkAt = t; }
+      if (a > 0.3) { sunH += 1 / 6; const c = WX.cloud && WX.cloud.get(key + 'T' + String(t.getHours()).padStart(2, '0') + ':00'); if (c != null) cl.push(c); }
+    }
+    if (!any) return null;
+    const cloud = cl.length ? cl.reduce((a, b) => a + b, 0) / cl.length : null;
+    return {kwh, pk, pkAt, cloud, sunH};
+  }
+  function renderForecast(){
+    const el = document.getElementById('forecast');
+    const t = todayKey(), tm = shiftKey(t, 1);
+    const rest = forecastDay(t, true), tom = forecastDay(tm, false);
+    if (!tom && !rest) { el.innerHTML = ''; return; }
+    // what the house needs from the sun: daytime use + filling the battery
+    const real = DATA ? DATA.days.filter(d => d.complete && d.tot.load > 1) : [];
+    const dayUse = real.length ? real.reduce((a, d) => a + d.hourly.reduce((x, h, i) => x + (i >= 6 && i < 18 ? h.solar + h.batt + h.grid : 0), 0), 0) / real.length : 25;
+    const need = dayUse + (S.cap || 16.07) * (100 - (S.reserve || 25)) / 100;
+    const sky = c => c == null ? '' : c < 25 ? 'sunny' : c < 55 ? 'partly cloudy' : c < 80 ? 'mostly cloudy' : 'overcast';
+    const verdict = f => {
+      if (f.kwh >= need + 10) return 'Plenty: enough for the house, a full battery and all the geysers' + (f.pkAt ? ', best around ' + hm(f.pkAt) : '') + '.';
+      if (f.kwh >= need) return 'Should fill the battery and cover the day. Heat geysers in the sunniest hours' + (f.pkAt ? ' (around ' + hm(f.pkAt) + ')' : '') + '.';
+      if (f.kwh >= need * 0.6) return 'Tight: the battery may not get full. Run heavy loads at midday only.';
+      return 'Low solar: the battery probably won\'t fill. Keep geysers to the sunniest hours and expect more grid use tonight.';
+    };
+    const card = (title, f, note) => !f ? '' :
+      '<div class="fc"><div class="k">' + title + '</div><div class="v">' + kwh(f.kwh) + '<small>kWh solar expected</small></div>' +
+      '<div>' + (f.cloud != null ? sky(f.cloud).charAt(0).toUpperCase() + sky(f.cloud).slice(1) + ' · ' : '') + 'peak ~' + f.pk.toFixed(1) + ' kW' + (f.pkAt ? ' at ' + hm(f.pkAt) : '') + '</div>' +
+      '<div style="margin-top:6px;color:var(--text)">' + note(f) + '</div></div>';
+    el.innerHTML =
+      card('Rest of today', rest && rest.kwh > 0.2 ? rest : null, f => f.kwh < 1 ? 'The sun is nearly done for today.' : 'Still to come from the panels today.') +
+      card('Tomorrow · ' + niceDay(tm), tom, verdict);
+  }
   function sunChart(sel){
+    renderForecast();
     const SL = 144, used = new Array(SL).fill(null), avail = new Array(SL).fill(null), uc = new Array(SL).fill(0), ac = new Array(SL).fill(0);
     sel.forEach(d => {
       const S2 = solarSlots(d);
